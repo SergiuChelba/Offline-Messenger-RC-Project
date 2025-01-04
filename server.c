@@ -314,6 +314,7 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         printf("[Server] Procesăm comanda Quit.\n");
         handle_quit_command(tdL); // Gestionăm ieșirea clientului
     } 
+
     else if (command->command_id == CMD_MSG_SEND) 
     {
         printf("[Server] Interpretăm comanda Send Message.\n");
@@ -341,10 +342,12 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
 
             printf("[Server] Destinatar: %s, Mesaj: %s\n", recipient, message);
 
-           if (tdL->messageData == NULL) 
-           {
-                tdL->messageData = malloc(sizeof(MessageData));
+            tdL->messageData = malloc(sizeof(struct MessageData));
+            if (tdL->messageData == NULL) {
+                perror("[Server] Eroare la alocarea memoriei pentru MessageData");
+                return;
             }
+
 
             strncpy(tdL->messageData->recipient, recipient, sizeof(tdL->messageData->recipient) - 1);
             tdL->messageData->recipient[sizeof(tdL->messageData->recipient) - 1] = '\0';
@@ -361,6 +364,7 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             printf("[Server] CMD_MSG_SEND fără date valide.\n");
         }
     }
+
 
     else if (command->command_id == CMD_SEE_HISTORY) 
     {
@@ -453,7 +457,41 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         }
     }
 
+    else if (command->command_id == CMD_REPLY_MSG) 
+    {
+        printf("[Server] Interpretăm comanda Reply Message.\n");
 
+        // Preluăm `messageId` (primii 4 bytes în format de rețea)
+        uint32_t networkMessageNumber;
+        memcpy(&networkMessageNumber, command->data, sizeof(uint32_t));
+        int messageId = ntohl(networkMessageNumber); // Convertim în format local
+
+        // Preluăm mesajul de răspuns (restul datelor)
+        char* replyMessage = (char*)(command->data + sizeof(uint32_t));
+        printf("[Debug Server] Mesaj ID primit: %d, Reply: %s\n", messageId, replyMessage);
+
+        // Verificăm dacă datele sunt valide
+        if (command->size > sizeof(uint32_t)) {
+            printf("[Server] Răspundem mesajului %d cu textul: %s\n", messageId, replyMessage);
+
+            // Actualizăm structura `tdL->messageData`
+            if (tdL->messageData == NULL) {
+                tdL->messageData = malloc(sizeof(MessageData));
+                if (tdL->messageData == NULL) {
+                    perror("[Server] Eroare la alocarea memoriei pentru MessageData");
+                    return;
+                }
+            }
+
+            tdL->messageData->messageId = messageId;
+            strncpy(tdL->messageData->message, replyMessage, sizeof(tdL->messageData->message) - 1);
+            tdL->messageData->message[sizeof(tdL->messageData->message) - 1] = '\0';
+
+            printf("[Server] Datele pentru răspuns au fost stocate corect.\n");
+        } else {
+            printf("[Server] Comanda Reply Message nu are date valide.\n");
+        }
+    }
 
     else 
     {
@@ -741,15 +779,33 @@ void handleRequest(ClientCommunication *tdL)
         }
     }
 
-    else if(command->command_id == CMD_REPLY_MSG)
+    else if (command->command_id == CMD_REPLY_MSG) 
     {
-        printf("[Server]Send reply!\n");
-        if(tdL->loggedIn == 0)
-        {
+        printf("[Server] Gestionăm comanda Reply Message.\n");
+
+        if (tdL->loggedIn == 0) {
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
+            return;
+        }
+
+        // Apelăm funcția replyMessage cu parametrii necesari
+        if (replyMessage(
+                tdL->userData->username,               // Numele utilizatorului care trimite răspunsul
+                tdL->messageData->recipient,          // Destinatarul mesajului
+                tdL->messageData->messageId,          // ID-ul mesajului la care se răspunde
+                tdL->messageData->message))           // Textul mesajului de răspuns
+        {
+            commandResponse->command_id = CMD_REPLY_MSG + 0x40;
+            commandResponse->size = 0;
+            printf("[Server] Reply Message trimis cu succes.\n");
+        } else {
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            printf("[Server] Eroare la trimiterea Reply Message.\n");
         }
     }
+
 
      else if(command->command_id == CMD_MSG_RECV)
      {

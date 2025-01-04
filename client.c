@@ -161,11 +161,68 @@ void buildSendMessage(COMMAND* command)
 
 /* 5. COMANDA REPLY MESSAGE*/
 
-void buildReplyMessage(COMMAND* command)
+/*void buildReplyMessage(COMMAND* command)
 {
     command->command_id = CMD_REPLY_MSG;
     command->size = 0;
+}*/
+
+void buildReplyMessage(COMMAND* command, int sd) {
+    // Pasul 1: Afișarea conversațiilor existente
+    buildSeeConversations(command);
+    sendRequest(sd, command);
+    receiveRequest(sd, &command_resp);
+    interpretResponse(sd);
+
+    // Pasul 2: Selectarea unei conversații
+    char conversation[100];
+    printf("În ce conversație doriți să intrați? ");
+    scanf("%99s", conversation);
+
+    // Pasul 3: Afișarea istoricului conversației
+    buildSeeHistory(command);
+    sendRequest(sd, command);
+    receiveRequest(sd, &command_resp);
+    interpretResponse(sd);
+
+    // Pasul 4: Selectarea mesajului la care se răspunde
+    int messageNumber;
+    printf("Cărui mesaj doriți să îi răspundeți? (introduceți numărul mesajului) ");
+    scanf("%d", &messageNumber);
+
+    // Debug pentru ID mesaj
+    printf("[Debug Client] Mesaj ID selectat: %d\n", messageNumber);
+
+    // Pasul 5: Preluarea mesajului de la utilizator
+    char replyMessage[256];
+    printf("Introduceți mesajul de răspuns: ");
+    getchar(); // Consumăm newline
+    fgets(replyMessage, 256, stdin);
+    size_t replyLen = strlen(replyMessage);
+    if (replyMessage[replyLen - 1] == '\n') replyMessage[--replyLen] = '\0';
+
+    // Pasul 6: Construirea comenzii pentru reply
+    uint32_t networkMessageNumber = htonl(messageNumber); // Conversie la format rețea
+    command->command_id = CMD_REPLY_MSG;
+    command->size = sizeof(uint32_t) + replyLen;
+
+    // Alocăm memorie pentru datele comenzii
+    command->data = malloc(command->size);
+    memcpy(command->data, &networkMessageNumber, sizeof(uint32_t)); // Adăugăm numărul mesajului
+    memcpy(command->data + sizeof(uint32_t), replyMessage, replyLen); // Adăugăm mesajul
+
+    // Trimiterea comenzii
+    sendRequest(sd, command);
+    receiveRequest(sd, &command_resp);
+
+    // Interpretarea răspunsului
+    if (command_resp.command_id == CMD_REPLY_MSG + 0x40) {
+        printf("Reply message Success!\n");
+    } else {
+        printf("Reply message failed.\n");
+    }
 }
+
 
 /* 6. COMANDA RECEIVED MESSAGE */
 
@@ -614,7 +671,7 @@ int main(int argc, char *argv[])
 
         else if(strcmp(optiune, "5") == 0 && (currentMenuId == 1)) // Reply message
         {
-            buildReplyMessage(&command);
+            buildReplyMessage(&command, sd);
             printCommand(&command);
             sendRequest(sd, &command);
             receiveRequest(sd, &command_resp);

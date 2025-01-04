@@ -12,6 +12,7 @@ typedef struct UserData
 
 typedef struct MessageData 
 {
+    int messageId;
     char recipient[100]; 
     char message[256]; 
 } MessageData;
