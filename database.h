@@ -277,12 +277,6 @@ int sendMessageDB(const char* currentUser, const char* recipient, const char* me
     }
     sqlite3_finalize(stmt);
 
-
-    // Determinăm valorile pentru read1 și read2
-    //int read1 = strcmp(normalizedCurrentUser, currentUser) == 0 ? 1 : recipientLoggedIn ? 1 : 0;
-    //int read2 = strcmp(normalizedRecipient, recipient) == 0 ? (recipientLoggedIn ? 1 : 0) : 1;
-
-
     char user1[256], user2[256];
     int read1, read2;
     sscanf(selectedTableName, "conv_%255[^_]%255s", user1, user2);
@@ -506,24 +500,25 @@ int getConversationHistory(const char* currentUser, const char* recipient, char*
 
 int replyMessage(const char* username, const char* recipient, int replyToMessageId, const char* messageText) 
 {
-    sqlite3* dataBase;
-    sqlite3_stmt* stmt;
-    char tableName1[256], tableName2[256];
+    sqlite3* dataBase = NULL;
+    sqlite3_stmt* stmt = NULL;
+    char tableName1[256], tableName2[256], selectedTableName[256] = {0};
     char query[1024];
     int result;
-    char* existingTable = NULL;
+
+    char normalizedCurrentUser[256], normalizedRecipient[256];
+    strncpy(normalizedCurrentUser, username, sizeof(normalizedCurrentUser) - 1);
+    normalizedCurrentUser[sizeof(normalizedCurrentUser) - 1] = '\0';
+    strncpy(normalizedRecipient, recipient, sizeof(normalizedRecipient) - 1);
+    normalizedRecipient[sizeof(normalizedRecipient) - 1] = '\0';
 
     // Normalizează numele utilizatorilor
-    char normalizedUsername[256];
-    char normalizedRecipient[256];
-    strncpy(normalizedUsername, username, sizeof(normalizedUsername));
-    strncpy(normalizedRecipient, recipient, sizeof(normalizedRecipient));
-    normalizeString(normalizedUsername);
+    normalizeString(normalizedCurrentUser);
     normalizeString(normalizedRecipient);
 
     // Construim cele două variante pentru numele tabelei
-    snprintf(tableName1, sizeof(tableName1), "conv_%s_%s", normalizedUsername, normalizedRecipient);
-    snprintf(tableName2, sizeof(tableName2), "conv_%s_%s", normalizedRecipient, normalizedUsername);
+    snprintf(tableName1, sizeof(tableName1), "conv_%s_%s", normalizedCurrentUser, normalizedRecipient);
+    snprintf(tableName2, sizeof(tableName2), "conv_%s_%s", normalizedRecipient, normalizedCurrentUser);
 
     // Deschide baza de date
     if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
@@ -531,102 +526,109 @@ int replyMessage(const char* username, const char* recipient, int replyToMessage
         return 0;
     }
 
-    // Verificăm dacă prima tabelă există
-    snprintf(query, sizeof(query), "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';", tableName1);
+    // Verificăm dacă una dintre tabele există
+    snprintf(query, sizeof(query), 
+             "SELECT name FROM sqlite_master WHERE type='table' AND (name='%s' OR name='%s');", 
+             tableName1, tableName2);
+
     if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
-        printf("Eroare la verificarea existenței tabelei %s: %s\n", tableName1, sqlite3_errmsg(dataBase));
+        printf("Eroare la verificarea existenței tabelei: %s\n", sqlite3_errmsg(dataBase));
         sqlite3_close(dataBase);
         return 0;
     }
+
     result = sqlite3_step(stmt);
     if (result == SQLITE_ROW) {
-        existingTable = tableName1;
+        const char* tableNameFromDB = (const char*)sqlite3_column_text(stmt, 0);
+        if (tableNameFromDB != NULL) {
+            strncpy(selectedTableName, tableNameFromDB, sizeof(selectedTableName) - 1);
+        }
     }
     sqlite3_finalize(stmt);
 
-    // Dacă prima tabelă nu există, verificăm a doua
-    if (existingTable == NULL) {
-        snprintf(query, sizeof(query), "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';", tableName2);
-        if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
-            printf("Eroare la verificarea existenței tabelei %s: %s\n", tableName2, sqlite3_errmsg(dataBase));
-            sqlite3_close(dataBase);
-            return 0;
-        }
-        result = sqlite3_step(stmt);
-        if (result == SQLITE_ROW) {
-            existingTable = tableName2;
-        }
-        sqlite3_finalize(stmt);
-    }
-
-    // Dacă niciuna dintre tabele nu există, returnăm eroare
-    if (existingTable == NULL) 
-    {
+    // Dacă tabela nu există, returnăm eroare
+    if (selectedTableName[0] == '\0') {
         printf("Nicio tabelă de conversație nu există pentru utilizatorii %s și %s.\n", username, recipient);
         sqlite3_close(dataBase);
         return 0;
     }
 
     // Verificăm dacă mesajul original la care se răspunde există
-    snprintf(query, sizeof(query), "SELECT id FROM %s WHERE id=?;", existingTable);
-    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) 
-    {
+    snprintf(query, sizeof(query), "SELECT id FROM [%s] WHERE id = ?;", selectedTableName);
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
         printf("Eroare la pregătirea interogării pentru verificarea mesajului original: %s\n", sqlite3_errmsg(dataBase));
         sqlite3_close(dataBase);
         return 0;
     }
 
     sqlite3_bind_int(stmt, 1, replyToMessageId);
-
     result = sqlite3_step(stmt);
-    if (result != SQLITE_ROW) 
-    {
-        printf("Mesajul original cu ID=%d nu există în tabela %s.\n", replyToMessageId, existingTable);
-
-        // Debugging: afișează toate mesajele din tabelă
-        snprintf(query, sizeof(query), "SELECT id, sender, message FROM %s;", existingTable);
-        if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) == SQLITE_OK) {
-            printf("Mesaje existente în tabela %s:\n", existingTable);
-            while (sqlite3_step(stmt) == SQLITE_ROW) {
-                int id = sqlite3_column_int(stmt, 0);
-                const char* sender = (const char*)sqlite3_column_text(stmt, 1);
-                const char* message = (const char*)sqlite3_column_text(stmt, 2);
-                printf("ID: %d, Sender: %s, Message: %s\n", id, sender, message);
-            }
-        }
+    if (result != SQLITE_ROW) {
+        printf("Mesajul original cu ID=%d nu există în tabela %s.\n", replyToMessageId, selectedTableName);
         sqlite3_finalize(stmt);
         sqlite3_close(dataBase);
         return 0;
     }
     sqlite3_finalize(stmt);
 
-    // Inserează mesajul de răspuns
-    snprintf(query, sizeof(query), "INSERT INTO %s (sender, message, reply_to) VALUES (?, ?, ?);", existingTable);
-    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) 
-    {
+    // Determinăm dacă destinatarul este logat
+    int recipientLoggedIn = 0;
+    snprintf(query, sizeof(query), "SELECT Logat FROM users WHERE username = ?;");
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, recipient, -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            recipientLoggedIn = sqlite3_column_int(stmt, 0); // 1 dacă este logat, altfel 0
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    // Determinăm valorile pentru read1 și read2
+    char user1[256], user2[256];
+    int read1, read2;
+    sscanf(selectedTableName, "conv_%255[^_]%255s", user1, user2);
+
+    if (strcmp(normalizedCurrentUser, user1) == 0) {
+        read1 = 1;
+        read2 = recipientLoggedIn ? 1 : 0;
+    } else if (strcmp(normalizedRecipient, user1) == 0) {
+        read1 = recipientLoggedIn ? 1 : 0;
+        read2 = 1;
+    }
+
+    // Inserăm mesajul de răspuns
+    snprintf(query, sizeof(query),
+             "INSERT INTO [%s] (sender, message, reply_to, read1, read2) VALUES (?, ?, ?, ?, ?);",
+             selectedTableName);
+
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
         printf("Eroare la pregătirea interogării pentru inserare: %s\n", sqlite3_errmsg(dataBase));
         sqlite3_close(dataBase);
         return 0;
     }
+
     sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, messageText, -1, SQLITE_STATIC);
     sqlite3_bind_int(stmt, 3, replyToMessageId);
+    sqlite3_bind_int(stmt, 4, read1);
+    sqlite3_bind_int(stmt, 5, read2);
 
     result = sqlite3_step(stmt);
-    if (result != SQLITE_DONE) 
-    {
+    if (result != SQLITE_DONE) {
         printf("Eroare la inserarea mesajului de răspuns: %s\n", sqlite3_errmsg(dataBase));
         sqlite3_finalize(stmt);
         sqlite3_close(dataBase);
         return 0;
     }
 
-    printf("Mesaj de răspuns inserat cu succes în tabela %s.\n", existingTable);
+    printf("Mesaj de răspuns inserat cu succes în tabelul %s (read1=%d, read2=%d).\n",
+           selectedTableName, read1, read2);
+
     sqlite3_finalize(stmt);
     sqlite3_close(dataBase);
 
     return 1;
 }
+
 
 int getUsers(char*** users, int* userCount) 
 {

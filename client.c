@@ -297,34 +297,37 @@ int sendRequest(int sd, COMMAND* command_sent)
 int receiveRequest(int sd, COMMAND* command_received)
 {
     char raspuns[1024];
-    memset(raspuns, 0, 1024);
-    unsigned int bytes;
-    bytes = recv(sd, raspuns, sizeof(raspuns), 0);
+    memset(raspuns, 0, sizeof(raspuns));
+    unsigned int bytes = recv(sd, raspuns, sizeof(raspuns), 0);
     printf("Bytes count recv %d\n", bytes);
-    // printf("Data %2x\n", raspuns[0]);
-    if (bytes == -1)
-    {
+
+    if (bytes <= 0) {
         perror("Eroare la read() de la server.\n");
-        // print_error(errno);
+        return -1; // Eroare de citire
     }
-    if(bytes)
-    {
-        command_received->command_id = raspuns[0];
-        if(command_received->size < bytes - 1 )
-        {
-            if(command_received->data == NULL)
-            {
-                command_received->data = malloc(bytes - 1);
-            }
-            else
-            {
-                realloc(command_received->data, bytes - 1);
-            }             
+
+    // Extragem `command_id` din primul byte
+    command_received->command_id = raspuns[0];
+
+    // Calculăm dimensiunea datelor primite
+    unsigned int new_size = bytes - 1;
+
+    // Realocăm sau alocăm memoria necesară
+    if (command_received->size < new_size) {
+        void* new_data = realloc(command_received->data, new_size);
+        if (!new_data) {
+            perror("Eroare la realloc()");
+            free(command_received->data);
+            command_received->data = NULL;
+            return -1;
         }
-        memset(command_received->data, 0, bytes - 1);
-        memcpy(command_received->data, raspuns + 1, bytes - 1);
-        command_received->size = bytes - 1;
+        command_received->data = new_data;
     }
+
+    // Actualizăm dimensiunea și copiem datele
+    command_received->size = new_size;
+    memcpy(command_received->data, raspuns + 1, new_size);
+    return 1; // Succes
 }
 
 /*---------------------------------------------------------------------*/
@@ -743,10 +746,6 @@ int main(int argc, char *argv[])
         else if(strcmp(optiune, "5") == 0 && (currentMenuId == 1)) // Reply message
         {
             buildReplyMessage(&command, sd);
-            printCommand(&command);
-            sendRequest(sd, &command);
-            receiveRequest(sd, &command_resp);
-            printCommand(&command_resp);
             interpretResponse(sd);
             show_menu(1);
         }

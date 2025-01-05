@@ -444,13 +444,13 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         int messageId = ntohl(networkMessageNumber);
 
         // Preluăm mesajul de răspuns (restul datelor)
-        char* replyMessage = (char*)(command->data + sizeof(uint32_t));
-        printf("[Debug Server] Mesaj ID primit: %d, Reply: %s\n", messageId, replyMessage);
+        char* replyMess = (char*)(command->data + sizeof(uint32_t));
+        printf("[Debug Server] Mesaj ID primit: %d, Reply: %s\n", messageId, replyMess);
 
         // Verificăm dacă datele sunt valide
         if (command->size > sizeof(uint32_t)) 
         {
-            printf("[Server] Răspundem mesajului %d cu textul: %s\n", messageId, replyMessage);
+            printf("[Server] Răspundem mesajului %d cu textul: %s\n", messageId, replyMess);
 
             // Actualizăm structura `tdL->messageData`
             if (tdL->messageData == NULL) 
@@ -464,7 +464,7 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             }
 
             tdL->messageData->messageId = messageId;
-            strncpy(tdL->messageData->message, replyMessage, sizeof(tdL->messageData->message) - 1);
+            strncpy(tdL->messageData->message, replyMess, sizeof(tdL->messageData->message) - 1);
             tdL->messageData->message[sizeof(tdL->messageData->message) - 1] = '\0';
 
             printf("[Server] Datele pentru răspuns au fost stocate corect.\n");
