@@ -459,11 +459,35 @@ void interpretResponse(int sd)
         command_resp.success = 1;
     }
 
-    if(command_resp.command_id == CMD_MSG_RECV + 0x40)
+    if (command_resp.command_id == CMD_MSG_RECV + 0x40) 
     {
-        printf("Message received Success!\n");
+        printf("[Client] Mesaje primite (dimensiune: %zu):\n", (size_t)command_resp.size);
+        for (size_t i = 0; i < (size_t)command_resp.size; i++) 
+        {
+            printf("%02X ", command_resp.data[i]);
+            if ((i + 1) % 16 == 0) printf("\n");
+        }
+        printf("\n");
+
+        printf("Mesajele necitite:\n");
+
+        size_t offset = 0;
+        while (offset < (size_t)command_resp.size) 
+        {
+            char* sender = (char*)(command_resp.data + offset); 
+            offset += strlen(sender) + 1;
+
+            if (offset >= (size_t)command_resp.size) break; 
+
+            char* message = (char*)(command_resp.data + offset); 
+            offset += strlen(message) + 1; 
+
+            printf("[De la: %s] %s\n", sender, message);
+        }
+
         command_resp.success = 1;
     }
+
 
    if (command_resp.command_id == CMD_SEE_CONV + 0x40) 
     {

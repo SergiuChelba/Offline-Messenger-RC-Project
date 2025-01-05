@@ -290,7 +290,7 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
     else if (command->command_id == CMD_QUIT) 
     {
         printf("[Server] Procesăm comanda Quit.\n");
-        handle_quit_command(tdL); // Gestionăm ieșirea clientului
+        //handle_quit_command(tdL); // Gestionăm ieșirea clientului
     } 
 
     else if (command->command_id == CMD_MSG_SEND) 
@@ -627,6 +627,29 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             printf("[Server] CMD_SEE_OFF_USERS fără date valide.\n");
         }
     }
+    
+    else if (command->command_id == CMD_QUIT)
+    {
+        printf("[Server] Interpretăm comanda Quit.\n");
+        tdL->com_received->command_id = command->command_id;
+    }
+
+    else if (command->command_id == CMD_LOGOUT)
+    {
+        printf("[Server] Interpretăm comanda Logout.\n");
+        tdL->com_received->command_id = command->command_id;
+    }
+
+    else if (command->command_id == CMD_MSG_RECV) 
+    {
+        printf("[Server] Interpretăm comanda Receive Messages.\n");
+
+        if (command->size > 0) 
+        {
+            printf("[Server] Comanda CMD_MSG_RECV nu ar trebui să conțină date suplimentare la recepție.\n");
+        }
+    }
+
 
     else 
     {
@@ -712,7 +735,6 @@ void handleRequest(ClientCommunication *tdL)
     {
         printf("[Server] Logout!\n");
 
-        // Verificăm dacă utilizatorul este logat înainte de a-l deloga
         if (tdL->loggedIn == 0) {
             printf("[Server] Utilizatorul nu este logat.\n");
             commandResponse->command_id = CMD_ERROR;
@@ -720,27 +742,56 @@ void handleRequest(ClientCommunication *tdL)
             return;
         }
 
-        // Apelăm funcția de logout în baza de date pentru a seta Logat = 0
+        // Apelăm funcția logoutUserDB din database.h
         if (logoutUserDB(tdL->userData->username)) {
-            printf("[Server] Utilizatorul a fost delogat cu succes.\n");
+            printf("[Server] Utilizatorul %s a fost delogat cu succes.\n", tdL->userData->username);
 
             // Resetează datele utilizatorului
-            if (tdL->userData) {
-                resetUserData(tdL->userData);
-            }
+            resetUserData(tdL->userData);
 
             // Marchează utilizatorul ca delogat
             tdL->loggedIn = 0;
 
-            // Răspuns de succes pentru logout
+            // Trimitem un răspuns de succes
             commandResponse->command_id = CMD_EXECUTED_OK;
             commandResponse->size = 0;
         } else {
-            printf("[Server] Eroare la delogare.\n");
+            printf("[Server] Eroare la delogare pentru utilizatorul %s.\n", tdL->userData->username);
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
         }
     }
+    else if (command->command_id == CMD_QUIT)
+    {
+        printf("[Server] Quit!\n");
+
+        if (tdL->loggedIn == 0) {
+            printf("[Server] Utilizatorul nu este logat.\n");
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            return;
+        }
+
+        // Apelăm funcția quitUserDB din database.h
+        if (quitUserDB(tdL->userData->username)) {
+            printf("[Server] Utilizatorul %s a fost delogat prin quit.\n", tdL->userData->username);
+
+            // Resetează datele utilizatorului
+            resetUserData(tdL->userData);
+
+            // Marchează utilizatorul ca delogat
+            tdL->loggedIn = 0;
+
+            // Trimitem un răspuns de succes
+            commandResponse->command_id = CMD_EXECUTED_OK;
+            commandResponse->size = 0;
+        } else {
+            printf("[Server] Eroare la quit pentru utilizatorul %s.\n", tdL->userData->username);
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+        }
+    }
+
 
 
     else if (command->command_id == CMD_SEE_USERS) 
@@ -1014,15 +1065,82 @@ void handleRequest(ClientCommunication *tdL)
     }
 
 
-     else if(command->command_id == CMD_MSG_RECV)
-     {
-        printf("[Server]Message received!\n");
-        if(tdL->loggedIn == 0)
+     else if (command->command_id == CMD_MSG_RECV)
+    {
+        printf("[Server] Gestionăm comanda Receive Messages.\n");
+
+        if (tdL->loggedIn == 0) 
         {
+            printf("[Server] Utilizatorul nu este autentificat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
+            return;
         }
+
+        char** messages = NULL;
+        int messageCount = 0;
+
+        // Funcție care obține mesajele necitite din baza de date
+        if (!getUnreadMessages(tdL->userData->username, &messages, &messageCount)) 
+        {
+            printf("[Error] Nu s-a putut obține lista de mesaje necitite.\n");
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            return;
+        }
+
+        if (messages == NULL || messageCount <= 0) 
+        {
+            printf("[Info] Nu există mesaje necitite pentru acest utilizator.\n");
+            commandResponse->command_id = CMD_MSG_RECV + 0x40;
+            commandResponse->data = NULL;
+            commandResponse->size = 0;
+            return;
+        }
+
+        // Calculăm dimensiunea totală necesară pentru bufferul concatenat
+        size_t totalSize = 0;
+        for (int i = 0; i < messageCount; i++) 
+        {
+            if (messages[i] != NULL) 
+            {
+                totalSize += strlen(messages[i]) + 1; // +1 pentru '\0'
+            }
+        }
+
+        commandResponse->data = malloc(totalSize);
+        if (commandResponse->data == NULL) 
+        {
+            printf("[Error] Eroare la alocarea memoriei pentru bufferul concatenat.\n");
+            for (int i = 0; i < messageCount; i++) 
+            {
+                free(messages[i]);
+            }
+            free(messages);
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            return;
+        }
+
+        // Copiem mesajele în bufferul concatenat
+        size_t offset = 0;
+        for (int i = 0; i < messageCount; i++) 
+        {
+            if (messages[i] != NULL) 
+            {
+                strcpy((char*)commandResponse->data + offset, messages[i]);
+                offset += strlen(messages[i]) + 1; // Trecem după '\0'
+                free(messages[i]); // Eliberăm memoria pentru mesajul individual
+            }
+        }
+        free(messages);
+
+        commandResponse->command_id = CMD_MSG_RECV + 0x40;
+        commandResponse->size = totalSize;
+
+        printf("[Server] Mesajele necitite trimise cu succes.\n");
     }
+
 
    else if (command->command_id == CMD_SEE_CONV) 
    {
