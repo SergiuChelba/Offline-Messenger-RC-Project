@@ -39,8 +39,6 @@ typedef struct ClientData
     COMMAND* com_response;
     struct UserData* userData; // Datele utilizatorului curent
     struct MessageData* messageData; // Mesajul curent
-
-    // Conversații
     struct ConversationData* conversationData; // Lista de conversații
     uint8_t numConversations; // Numărul de conversații
 } ClientCommunication;
@@ -126,22 +124,6 @@ void handle_quit_command(ClientCommunication *tdL)
     close(tdL->socketID);  // Închidem conexiunea cu clientul
     pthread_exit(NULL);  // Ieșim din thread
 }
-
-
-/*
-
-Urmeaza a fi implementat
-
-void build_login_reponse(COMMAND *command)
-{
-    
-}
-
-void build_register_reponse(COMMAND *command)
-{
-    
-}
-*/
 
 /*---------------------------------------------------------------------*/
 
@@ -461,23 +443,25 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
     {
         printf("[Server] Interpretăm comanda Reply Message.\n");
 
-        // Preluăm `messageId` (primii 4 bytes în format de rețea)
         uint32_t networkMessageNumber;
         memcpy(&networkMessageNumber, command->data, sizeof(uint32_t));
-        int messageId = ntohl(networkMessageNumber); // Convertim în format local
+        int messageId = ntohl(networkMessageNumber);
 
         // Preluăm mesajul de răspuns (restul datelor)
         char* replyMessage = (char*)(command->data + sizeof(uint32_t));
         printf("[Debug Server] Mesaj ID primit: %d, Reply: %s\n", messageId, replyMessage);
 
         // Verificăm dacă datele sunt valide
-        if (command->size > sizeof(uint32_t)) {
+        if (command->size > sizeof(uint32_t)) 
+        {
             printf("[Server] Răspundem mesajului %d cu textul: %s\n", messageId, replyMessage);
 
             // Actualizăm structura `tdL->messageData`
-            if (tdL->messageData == NULL) {
+            if (tdL->messageData == NULL) 
+            {
                 tdL->messageData = malloc(sizeof(MessageData));
-                if (tdL->messageData == NULL) {
+                if (tdL->messageData == NULL) 
+                {
                     perror("[Server] Eroare la alocarea memoriei pentru MessageData");
                     return;
                 }
@@ -488,7 +472,9 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             tdL->messageData->message[sizeof(tdL->messageData->message) - 1] = '\0';
 
             printf("[Server] Datele pentru răspuns au fost stocate corect.\n");
-        } else {
+        } 
+        else 
+        {
             printf("[Server] Comanda Reply Message nu are date valide.\n");
         }
     }
@@ -525,14 +511,10 @@ void resetUserData(struct UserData* userData)
     }
 }
 
-
 /* Functia de manuire a cererii din partea clientului de catre server*/
-
 
 void handleRequest(ClientCommunication *tdL)
 {
-                                    
-
     COMMAND *command = tdL->com_received;
     COMMAND *commandResponse = tdL->com_response;
 
@@ -542,8 +524,8 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server]User tries to login !\n");
         printf("[Server] %s! \n", tdL->userData->username);
         printf("[Server] %s! \n", tdL->userData->password);
+        
         // Dummy login check
-
         if (loginUserDB( tdL->userData->username,  tdL->userData->password, &tdL->dataBaseID) == 1) //CEVA GRESIT
         {
             commandResponse->command_id = CMD_LOGIN + 0x40;
@@ -634,29 +616,37 @@ void handleRequest(ClientCommunication *tdL)
         unsigned int uid = 0;
         printf("[Server] See username!\n");
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
             return;
         }
 
-        if (command->size >= 1) {
+        if (command->size >= 1) 
+        {
             uid = command->data[0];
             char* userNameResult = NULL;
             int result = getUserNameByUID(uid, &userNameResult);
+            printf("Vai\n");
 
-            if (result && userNameResult) {
+            if (result && userNameResult) 
+            {
                 printf("Get user name of UID %d is %s\n", uid, userNameResult);
 
                 commandResponse->size = strlen(userNameResult) + 1;
                 commandResponse->data = userNameResult;
                 commandResponse->command_id = CMD_SEE_USERNAME + 0x40;
-            } else {
+            } 
+            else 
+            {
                 printf("User not found for UID %d\n", uid);
                 commandResponse->command_id = CMD_ERROR;
                 commandResponse->size = 0;
             }
-        } else {
+        } 
+        else 
+        {
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
         }
@@ -783,7 +773,8 @@ void handleRequest(ClientCommunication *tdL)
     {
         printf("[Server] Gestionăm comanda Reply Message.\n");
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
             return;
@@ -817,16 +808,6 @@ void handleRequest(ClientCommunication *tdL)
         }
     }
 
-    /*else if(command->command_id == CMD_SEE_CONV)
-    {
-        printf("[Server]See conversation!\n");
-        if(tdL->loggedIn == 0)
-        {
-            commandResponse->command_id = CMD_ERROR;
-            commandResponse->size = 0;
-        }
-    } */
-
    else if (command->command_id == CMD_SEE_CONV) 
    {
         printf("[Server] See conversations!\n");
@@ -848,20 +829,23 @@ void handleRequest(ClientCommunication *tdL)
             int conversationCount = 0;
 
             // Obține lista conversațiilor
-            if (getConversations(tdL->userData->username, &conversations, &conversationCount)) {
+            if (getConversations(tdL->userData->username, &conversations, &conversationCount)) 
+            {
                 printf("[Server] Număr de conversații găsite: %d\n", conversationCount);
 
                 if (conversationCount > 0) {
                     // Concatenează conversațiile într-un buffer unic
                     size_t totalSize = 0;
-                    for (int i = 0; i < conversationCount; i++) {
+                    for (int i = 0; i < conversationCount; i++) 
+                    {
                         totalSize += strlen(conversations[i]) + 1; // +1 pentru '\0'
                     }
 
                     commandResponse->data = malloc(totalSize);
                     if (commandResponse->data == NULL) {
                         printf("[Error] Eroare la alocarea memoriei pentru lista conversațiilor.\n");
-                        for (int i = 0; i < conversationCount; i++) {
+                        for (int i = 0; i < conversationCount; i++) 
+                        {
                             free(conversations[i]);
                         }
                         free(conversations);
@@ -878,12 +862,16 @@ void handleRequest(ClientCommunication *tdL)
 
                     commandResponse->size = totalSize;
                     printf("[Server] Lista de conversații trimisă cu succes.\n");
-                } else {
+                } 
+                else 
+                {
                     printf("[Server] Nu s-au găsit conversații pentru utilizatorul curent.\n");
                     commandResponse->command_id = CMD_ERROR;
                     commandResponse->size = 0;
                 }
-            } else {
+            } 
+            else 
+            {
                 printf("[Server] Nu s-a putut obține lista de conversații.\n");
                 commandResponse->command_id = CMD_ERROR;
                 commandResponse->size = 0;
@@ -891,75 +879,80 @@ void handleRequest(ClientCommunication *tdL)
         }
     }
 
-
     else if (command->command_id == CMD_SEE_HISTORY) 
     {
         printf("[Server] See history!\n");
 
         if (tdL->loggedIn == 0) {
+            printf("[Error] Utilizatorul nu este autentificat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
-        } 
-        else 
-        {
+            return;
+        }
+
+        char** messages = NULL;
+        int messageCount = 0;
+
+        // Obținem istoricul conversației
+        if (!getConversationHistory(tdL->userData->username, tdL->messageData->recipient, &messages, &messageCount)) {
+            printf("[Error] Nu s-a putut obține istoricul conversației.\n");
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            return;
+        }
+
+        // Verificăm dacă există mesaje valide
+        if (messages == NULL || messageCount <= 0) {
+            printf("[Info] Nu există mesaje pentru această conversație.\n");
             commandResponse->command_id = CMD_SEE_HISTORY + 0x40;
-            char** messages = NULL;
-            int messageCount = 0;
+            commandResponse->data = NULL;
+            commandResponse->size = 0;
+            return;
+        }
 
-            // Obținem istoricul conversației
-            if (getConversationHistory(tdL->userData->username, tdL->messageData->recipient, &messages, &messageCount)) 
-            {
-                printf("[Server] Număr de mesaje în conversație: %d\n", messageCount);
-
-                if (messages == NULL || messageCount <= 0) 
-                {
-                    printf("[Error] Lista de mesaje este NULL sau numărul de mesaje este invalid.\n");
-                    return;
-                }
-
-                // Calculăm dimensiunea totală necesară pentru bufferul concatenat
-                size_t totalSize = 0;
-                for (int i = 0; i < messageCount; i++) {
-                    if (messages[i] != NULL) {
-                        totalSize += strlen(messages[i]) + 1; // +1 pentru '\0'
-                    }
-                }
-
-                // Alocăm bufferul pentru toate mesajele
-                commandResponse->data = malloc(totalSize);
-                if (commandResponse->data == NULL) {
-                    printf("[Error] Eroare la alocarea memoriei pentru bufferul concatenat.\n");
-                    for (int i = 0; i < messageCount; i++) {
-                        free(messages[i]);
-                    }
-                    free(messages);
-                    return;
-                }
-
-                // Copiem mesajele în bufferul concatenat
-                size_t offset = 0;
-                for (int i = 0; i < messageCount; i++) {
-                    if (messages[i] != NULL) {
-                        strcpy((char*)commandResponse->data + offset, messages[i]);
-                        offset += strlen(messages[i]) + 1; // Trecem după '\0'
-                        free(messages[i]); // Eliberăm memoria pentru mesajul individual
-                    }
-                }
-
-                // Setăm dimensiunea totală a datelor și trimitem răspunsul
-                commandResponse->size = totalSize;
-                free(messages); // Eliberăm lista de mesaje
-                printf("[Server] Istoric conversație concatenat trimis cu succes.\n");
-            } 
-            else 
-            {
-                commandResponse->command_id = CMD_ERROR;
-                commandResponse->size = 0;
-                printf("[Server] Nu s-a putut obține istoricul conversației.\n");
+        // Calculăm dimensiunea totală necesară pentru bufferul concatenat
+        uint32_t totalSize = 0;
+        for (int i = 0; i < messageCount; i++) {
+            if (messages[i] != NULL) {
+                totalSize += strlen(messages[i]) + 1; // +1 pentru '\0'
             }
         }
+
+        printf("TotalSize: %d\n", totalSize);
+
+        // Alocăm bufferul pentru toate mesajele
+        commandResponse->data = malloc(totalSize);
+        if (commandResponse->data == NULL) {
+            printf("[Error] Eroare la alocarea memoriei pentru bufferul concatenat.\n");
+            for (int i = 0; i < messageCount; i++) 
+            {
+                free(messages[i]);
+            }
+            free(messages);
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+            return;
+        }
+
+        // Copiem mesajele în bufferul concatenat
+        uint32_t offset = 0;
+        for (int i = 0; i < messageCount; i++) {
+            if (messages[i] != NULL) {
+                strcpy((char*)commandResponse->data + offset, messages[i]);
+                offset += strlen(messages[i]) + 1; // Trecem după '\0'
+                free(messages[i]); // Eliberăm memoria pentru mesajul individual
+            }
+        }
+        free(messages); // Eliberăm lista de mesaje
+
+        // Setăm dimensiunea totală a datelor și trimitem răspunsul
+        commandResponse->command_id = CMD_SEE_HISTORY + 0x40;
+        commandResponse->size = totalSize;
+
+        printf("[Server] Istoric conversație concatenat trimis cu succes.\n");
     }
 
+    
     else 
     {
         printf("asdfasdfasd\n");

@@ -99,7 +99,8 @@ void build_quit_command(COMMAND *command)
     command->data = NULL;
 }
 
-void buildSeeUserNameCommand(COMMAND *command, unsigned int UID){
+void buildSeeUserNameCommand(COMMAND *command, unsigned int UID)
+{
     command->command_id = CMD_SEE_USERNAME;
     command->size = 1;
     command->data = (char*)malloc(1);
@@ -167,7 +168,8 @@ void buildSendMessage(COMMAND* command)
     command->size = 0;
 }*/
 
-void buildReplyMessage(COMMAND* command, int sd) {
+void buildReplyMessage(COMMAND* command, int sd) 
+{
     // Pasul 1: Afișarea conversațiilor existente
     buildSeeConversations(command);
     sendRequest(sd, command);
@@ -175,9 +177,9 @@ void buildReplyMessage(COMMAND* command, int sd) {
     interpretResponse(sd);
 
     // Pasul 2: Selectarea unei conversații
-    char conversation[100];
-    printf("În ce conversație doriți să intrați? ");
-    scanf("%99s", conversation);
+    //char conversation[100];
+    //printf("În ce conversație doriți să intrați? ");
+    //scanf("%99s", conversation);
 
     // Pasul 3: Afișarea istoricului conversației
     buildSeeHistory(command);
@@ -216,9 +218,12 @@ void buildReplyMessage(COMMAND* command, int sd) {
     receiveRequest(sd, &command_resp);
 
     // Interpretarea răspunsului
-    if (command_resp.command_id == CMD_REPLY_MSG + 0x40) {
+    if (command_resp.command_id == CMD_REPLY_MSG + 0x40) 
+    {
         printf("Reply message Success!\n");
-    } else {
+    } 
+    else 
+    {
         printf("Reply message failed.\n");
     }
 }
@@ -249,7 +254,7 @@ void buildSeeHistory(COMMAND* command)
     char UserConv[100];
 
     // Citire utilizator (în cazul în care dorim să vedem istoricul unui anumit utilizator)
-    printf("Introduceți numele de utilizator pentru a vedea istoricul: ");
+    printf("Introduceți numele persoanei cu care ați conversat: ");
     scanf("%99s", UserConv);
     userLen = strlen(UserConv);
 
@@ -301,8 +306,8 @@ int sendRequest(int sd, COMMAND* command_sent)
 
 int receiveRequest(int sd, COMMAND* command_received)
 {
-    char raspuns[256];
-    memset(raspuns, 0, 256);
+    char raspuns[1024];
+    memset(raspuns, 0, 1024);
     unsigned int bytes;
     bytes = recv(sd, raspuns, sizeof(raspuns), 0);
     printf("Bytes count recv %d\n", bytes);
@@ -386,7 +391,8 @@ void interpretResponse(int sd)
             buildSeeUserNameCommand(&command, command_resp.data[i]);
             sendRequest(sd, &command);
             receiveRequest(sd, &respUserName);
-            if(respUserName.command_id == CMD_SEE_USERNAME + 0x40){
+            if(respUserName.command_id == CMD_SEE_USERNAME + 0x40)
+            {
                 printf("See UserName Success!\n");
                 printf("See user name %s \n", respUserName.data);
                 
@@ -427,15 +433,11 @@ void interpretResponse(int sd)
         command_resp.success = 1;
     }
 
-    /*if(command_resp.command_id == CMD_SEE_CONV + 0x40)
-    {
-        printf("See conversation Success!\n");
-        command_resp.success = 1;
-    }*/
    if (command_resp.command_id == CMD_SEE_CONV + 0x40) 
     {
         printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
-        for (unsigned int i = 0; i < command_resp.size; i++) {
+        for (unsigned int i = 0; i < command_resp.size; i++) 
+        {
             printf("%02X ", command_resp.data[i]);
             if ((i + 1) % 16 == 0) printf("\n");
         }
@@ -445,7 +447,8 @@ void interpretResponse(int sd)
 
         // Parcurgem conversațiile din bufferul primit
         unsigned int offset = 0;
-        while (offset < command_resp.size) {
+        while (offset < command_resp.size) 
+        {
             char* currentConv = (char*)(command_resp.data + offset);
             printf("[Debug] Offset: %u, Conversație: %s\n", offset, currentConv);
             printf("%s\n", currentConv);
@@ -455,31 +458,43 @@ void interpretResponse(int sd)
         command_resp.success = 1;
     }
 
-
     if (command_resp.command_id == CMD_SEE_HISTORY + 0x40) 
     {
-
-        //printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
-        //for (unsigned int i = 0; i < command_resp.size; i++) {
-        //    printf("%02X ", command_resp.data[i]);
-        //    if ((i + 1) % 16 == 0) printf("\n");
-        //}
-        //printf("\n");
-
+        printf("[Debug Client] Dimensiunea datelor primite: %d\n", command_resp.size);
+        printf("[Debug Client] Date brute primite:\n");
+        for (uint32_t i = 0; i < command_resp.size; i++) {
+            printf("%c", command_resp.data[i] ? command_resp.data[i] : '|'); // Afișăm '|' pentru '\0'
+        }
+        printf("\n");
 
         printf("Istoricul conversației:\n");
 
-        // Parcurgem toate mesajele din bufferul primit
-        unsigned int offset = 0;
+        uint32_t offset = 0;
         while (offset < command_resp.size) {
             char* currentMessage = (char*)(command_resp.data + offset);
-            //printf("[Debug] Offset: %u, Mesaj: %s\n", offset, currentMessage);
             printf("%s\n", currentMessage);
-            offset += strlen(currentMessage) + 1; // Trecem la următorul mesaj
+
+            // Găsim următorul separator '\0'
+            uint32_t length = 0;
+            while ((offset + length) < command_resp.size && command_resp.data[offset + length] != '\0') {
+                length++;
+            }
+
+            // Avansăm după '\0'
+            offset += length + 1;
+
+            // Verificăm dacă am depășit dimensiunea totală
+            if (offset > command_resp.size) 
+            {
+                printf("[Warning] Offset-ul a depășit dimensiunea bufferului!\n");
+                break;
+            }
         }
 
         command_resp.success = 1;
     }
+
+
 
     if(command_resp.command_id == CMD_LOGOUT + 0x40)
     {
@@ -739,104 +754,7 @@ int main(int argc, char *argv[])
             printf("Opțiune invalidă. Încercați din nou.\n");
         }
 
-        /*else if (strcmp(optiune, "Register") == 0)
-        {
-            /* Înregistrare 
-            printf("Introduceti un nume cu care sa va inregistrati: ");
-            fflush(stdout);
-            read(0, buf, sizeof(buf));
-            buf[strcspn(buf, "\n")] = '\0'; // eliminăm '\n'
-
-            if (send(sd, buf, strlen(buf), 0) <= 0)
-            {
-                perror("Eroare la write() spre server.\n");
-                return errno;
-            }
-
-            char raspuns[64];
-            if (recv(sd, raspuns, sizeof(raspuns), 0) < 0)
-            {
-                perror("Eroare la read() de la server.\n");
-                return errno;
-            }
-
-            printf("Mesajul primit este: %s\n", raspuns);
-            printf("V-ati inregistrat cu succes!\n");
-            while (1) // Submeniul Register
-            {
-                printf("Ce optiune doriti: [Login] sau [Quit]?\n");
-                fflush(stdout);
-                read(0, optiune, sizeof(optiune));
-                optiune[strcspn(optiune, "\n")] = '\0';
-
-                if (strcmp(optiune, "Login") == 0)
-                {
-                    meniu_login(sd); // Apelăm meniul Login
-                }
-                else if (strcmp(optiune, "Quit") == 0)
-                {
-                    close(sd);
-                    printf("Ați ieșit din aplicație. La revedere!\n");
-                    return 0; // Ieșire completă
-                }
-                else
-                {
-                    printf("Opțiune invalidă. Încercați din nou.\n");
-                }
-            }
-        }*/
-    
     }
 
     return 0;
 }
-
-/* Meniul Login 
-void meniu_login(int sd)
-{
-    char optiune[10];
-    while (1)
-    {
-        printf("\nAlegeți o opțiune:\n");
-        printf("1. Vezi utilizatorii online\n");
-        printf("2. Vezi utilizatorii offline\n");
-        printf("3. Vezi toti utilizatorii\n");
-        printf("4. Logout\n");
-        printf("5. Quit\n");
-        fflush(stdout);
-
-        read(0, optiune, sizeof(optiune));
-        optiune[strcspn(optiune, "\n")] = '\0';
-
-        if (strcmp(optiune, "1") == 0)
-        {
-            printf("Utilizatorii online:\n");
-            // Trimitere cerere către server și afișarea răspunsului
-        }
-        else if (strcmp(optiune, "2") == 0)
-        {
-            printf("Utilizatorii offline:\n");
-            // Trimitere cerere către server și afișarea răspunsului
-        }
-        else if (strcmp(optiune, "3") == 0)
-        {
-            printf("Toți utilizatorii:\n");
-            // Trimitere cerere către server și afișarea răspunsului
-        }
-        else if (strcmp(optiune, "4") == 0)
-        {
-            printf("V-ați deconectat. Ce opțiune doriți: [Quit] sau [Login]?\n");
-            return; // Revenim în meniul Register
-        }
-        else if (strcmp(optiune, "5") == 0)
-        {
-            printf("Ați ieșit din aplicație. La revedere!\n");
-            close(sd);
-            exit(0);
-        }
-        else
-        {
-            printf("Opțiune invalidă. Încercați din nou.\n");
-        }
-    }
-}*/
