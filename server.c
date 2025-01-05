@@ -41,6 +41,7 @@ typedef struct ClientData
     struct MessageData* messageData; // Mesajul curent
     struct ConversationData* conversationData; // Lista de conversații
     uint8_t numConversations; // Numărul de conversații
+    uint8_t numUsers;
 } ClientCommunication;
 
 struct ClientData* connectedClients[100]; //hardcodat momentan
@@ -286,11 +287,6 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         }
     }  
 
-    else if(command->command_id == CMD_SEE_USERNAME)
-    {
-        printf("[Server] Process user name\n");
-    }
-
     else if (command->command_id == CMD_QUIT) 
     {
         printf("[Server] Procesăm comanda Quit.\n");
@@ -479,6 +475,159 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         }
     }
 
+    else if (command->command_id == CMD_SEE_USERS) 
+    {
+        printf("[Server] Interpretăm comanda See Users.\n");
+
+        if (command->size > 0) 
+        {
+            char users[256][100]; // Matrice pentru până la 256 utilizatori de maximum 100 de caractere fiecare
+            uint8_t numUsers = command->data[0]; // Primul byte indică numărul de utilizatori
+
+            // Verificăm dacă datele sunt valide
+            if (command->size < 1 + numUsers * 100) 
+            {
+                printf("[Server] Eroare: Dimensiunea datelor este insuficientă pentru CMD_SEE_USERS.\n");
+                return;
+            }
+
+            // Extragem utilizatorii
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                memcpy(users[i], command->data + 1 + i * 100, 100);
+                users[i][99] = '\0'; // Asigurăm terminatorul de șir
+            }
+
+            printf("[Server] Lista utilizatorilor:\n");
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                printf("- %s\n", users[i]);
+            }
+
+            // Stocăm datele în tdL (dacă este cazul)
+            if (tdL->userData == NULL) 
+            {
+                tdL->userData = malloc(sizeof(UserData) * numUsers);
+            }
+
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                strncpy(tdL->userData[i].username, users[i], sizeof(tdL->userData[i].username) - 1);
+                tdL->userData[i].username[sizeof(tdL->userData[i].username) - 1] = '\0';
+            }
+
+            tdL->numUsers = numUsers;
+
+            printf("[Debug] În interpretRequest, numUsers=%d\n", tdL->numUsers);
+        } 
+        else 
+        {
+            printf("[Server] CMD_SEE_USERS fără date valide.\n");
+        }
+    }
+
+    else if (command->command_id == CMD_SEE_ON_USERS) 
+    {
+        printf("[Server] Interpretăm comanda See Online Users.\n");
+
+        if (command->size > 0) 
+        {
+            char users[256][100]; // Matrice pentru până la 256 utilizatori de maximum 100 de caractere fiecare
+            uint8_t numUsers = command->data[0]; // Primul byte indică numărul de utilizatori
+
+            // Verificăm dacă datele sunt valide
+            if (command->size < 1 + numUsers * 100) 
+            {
+                printf("[Server] Eroare: Dimensiunea datelor este insuficientă pentru CMD_SEE_ON_USERS.\n");
+                return;
+            }
+
+            // Extragem utilizatorii
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                memcpy(users[i], command->data + 1 + i * 100, 100);
+                users[i][99] = '\0'; // Asigurăm terminatorul de șir
+            }
+
+            printf("[Server] Lista utilizatorilor online:\n");
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                printf("- %s\n", users[i]);
+            }
+
+            // Stocăm datele în tdL (dacă este cazul)
+            if (tdL->userData == NULL) 
+            {
+                tdL->userData = malloc(sizeof(UserData) * numUsers);
+            }
+
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                strncpy(tdL->userData[i].username, users[i], sizeof(tdL->userData[i].username) - 1);
+                tdL->userData[i].username[sizeof(tdL->userData[i].username) - 1] = '\0';
+            }
+
+            tdL->numUsers = numUsers;
+
+            printf("[Debug] În interpretRequest, numUsers=%d\n", tdL->numUsers);
+        } 
+        else 
+        {
+            printf("[Server] CMD_SEE_ON_USERS fără date valide.\n");
+        }
+    }
+
+    else if (command->command_id == CMD_SEE_OFF_USERS) 
+    {
+        printf("[Server] Interpretăm comanda See Offline Users.\n");
+
+        if (command->size > 0) 
+        {
+            char users[256][100]; // Matrice pentru până la 256 utilizatori de maximum 100 de caractere fiecare
+            uint8_t numUsers = command->data[0]; // Primul byte indică numărul de utilizatori
+
+            // Verificăm dacă datele sunt valide
+            if (command->size < 1 + numUsers * 100) 
+            {
+                printf("[Server] Eroare: Dimensiunea datelor este insuficientă pentru CMD_SEE_OFF_USERS.\n");
+                return;
+            }
+
+            // Extragem utilizatorii
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                memcpy(users[i], command->data + 1 + i * 100, 100);
+                users[i][99] = '\0'; // Asigurăm terminatorul de șir
+            }
+
+            printf("[Server] Lista utilizatorilor offline:\n");
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                printf("- %s\n", users[i]);
+            }
+
+            // Stocăm datele în tdL (dacă este cazul)
+            if (tdL->userData == NULL) 
+            {
+                tdL->userData = malloc(sizeof(UserData) * numUsers);
+            }
+
+            for (uint8_t i = 0; i < numUsers; i++) 
+            {
+                strncpy(tdL->userData[i].username, users[i], sizeof(tdL->userData[i].username) - 1);
+                tdL->userData[i].username[sizeof(tdL->userData[i].username) - 1] = '\0';
+            }
+
+            tdL->numUsers = numUsers;
+
+            printf("[Debug] În interpretRequest, numUsers=%d\n", tdL->numUsers);
+        } 
+        else 
+        {
+            printf("[Server] CMD_SEE_OFF_USERS fără date valide.\n");
+        }
+    }
+
     else 
     {
         printf("[Server] Unknown command ID=%X.\n", command->command_id);
@@ -561,187 +710,254 @@ void handleRequest(ClientCommunication *tdL)
 
     else if (command->command_id == CMD_LOGOUT)
     {
-        printf("[Server]Logout!\n");
+        printf("[Server] Logout!\n");
 
-        // Resetează datele utilizatorului
-        if (tdL->userData) {
-            resetUserData(tdL->userData);
-        }
-
-        // Marchează utilizatorul ca delogat
-        tdL->loggedIn = 0;
-
-        // Răspuns de succes pentru logout
-        commandResponse->command_id = CMD_EXECUTED_OK;
-        commandResponse->size = 0;
-    }
-
-    /*else if(command->command_id == CMD_SEE_USERNAME)
-    {
-        unsigned int uid = 0;
-        printf("[Server]See username!\n");
-        if(tdL->loggedIn == 0)
-        {
-            commandResponse->command_id = CMD_ERROR;
-            commandResponse->size = 0;
-        } 
-
-        printf("Of\n");
-
-        if(command->size >= 1)
-        {
-            printf("Of\n");
-            uid = command->data[0];
-            char *userNameResult;
-            int result = getUserNameByUID(uid, &userNameResult);
-            printf("Of\n");
-            if (userNameResult)
-            {
-                printf("Get user name of uid %d  is %s\n", uid, userNameResult);
-            }
-            commandResponse->size = strlen(userNameResult) + 1;
-            commandResponse->data = userNameResult;
-            commandResponse->data[commandResponse->size] = '\0';
-            commandResponse->command_id = CMD_SEE_USERNAME + 0x40;
-        }
-        else
-        {
-            commandResponse->command_id = CMD_ERROR;
-            commandResponse->size = 0;
-        }
-    }*/
-
-   else if (command->command_id == CMD_SEE_USERNAME) 
-   {
-        unsigned int uid = 0;
-        printf("[Server] See username!\n");
-
-        if (tdL->loggedIn == 0) 
-        {
+        // Verificăm dacă utilizatorul este logat înainte de a-l deloga
+        if (tdL->loggedIn == 0) {
+            printf("[Server] Utilizatorul nu este logat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
             return;
         }
 
-        if (command->size >= 1) 
-        {
-            uid = command->data[0];
-            char* userNameResult = NULL;
-            int result = getUserNameByUID(uid, &userNameResult);
-            printf("Vai\n");
+        // Apelăm funcția de logout în baza de date pentru a seta Logat = 0
+        if (logoutUserDB(tdL->userData->username)) {
+            printf("[Server] Utilizatorul a fost delogat cu succes.\n");
 
-            if (result && userNameResult) 
+            // Resetează datele utilizatorului
+            if (tdL->userData) {
+                resetUserData(tdL->userData);
+            }
+
+            // Marchează utilizatorul ca delogat
+            tdL->loggedIn = 0;
+
+            // Răspuns de succes pentru logout
+            commandResponse->command_id = CMD_EXECUTED_OK;
+            commandResponse->size = 0;
+        } else {
+            printf("[Server] Eroare la delogare.\n");
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+        }
+    }
+
+
+    else if (command->command_id == CMD_SEE_USERS) 
+    {
+        printf("[Server] See users!\n");
+
+        // Eliberează memoria pentru datele anterioare
+        if (commandResponse->data) {
+            free(commandResponse->data);
+            commandResponse->data = NULL;
+        }
+        commandResponse->size = 0;
+
+        if (tdL->loggedIn == 0) {
+            // Utilizatorul nu este logat
+            commandResponse->command_id = CMD_ERROR;
+            commandResponse->size = 0;
+        } else {
+            commandResponse->command_id = CMD_SEE_USERS + 0x40;
+            char** users = NULL;
+            int userCount = 0;
+
+            // Obține lista utilizatorilor
+            if (getUsers(&users, &userCount)) 
             {
-                printf("Get user name of UID %d is %s\n", uid, userNameResult);
+                printf("[Server] Număr de utilizatori găsiți: %d\n", userCount);
 
-                commandResponse->size = strlen(userNameResult) + 1;
-                commandResponse->data = userNameResult;
-                commandResponse->command_id = CMD_SEE_USERNAME + 0x40;
+                if (userCount > 0) {
+                    // Concatenează utilizatorii într-un buffer unic
+                    size_t totalSize = 0;
+                    for (int i = 0; i < userCount; i++) 
+                    {
+                        totalSize += strlen(users[i]) + 1; // +1 pentru '\0'
+                    }
+
+                    commandResponse->data = malloc(totalSize);
+                    if (commandResponse->data == NULL) {
+                        printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor.\n");
+                        for (int i = 0; i < userCount; i++) 
+                        {
+                            free(users[i]);
+                        }
+                        free(users);
+                        return;
+                    }
+
+                    char* currentPos = (char*)commandResponse->data;
+                    for (int i = 0; i < userCount; i++) {
+                        strcpy(currentPos, users[i]);
+                        currentPos += strlen(users[i]) + 1;
+                        free(users[i]); // Eliberăm memoria pentru fiecare utilizator
+                    }
+                    free(users);
+
+                    commandResponse->size = totalSize;
+                    printf("[Server] Lista de utilizatori trimisă cu succes.\n");
+                } 
+                else 
+                {
+                    printf("[Server] Nu s-au găsit utilizatori.\n");
+                    commandResponse->command_id = CMD_ERROR;
+                    commandResponse->size = 0;
+                }
             } 
             else 
             {
-                printf("User not found for UID %d\n", uid);
+                printf("[Server] Nu s-a putut obține lista de utilizatori.\n");
                 commandResponse->command_id = CMD_ERROR;
                 commandResponse->size = 0;
             }
-        } 
-        else 
-        {
-            commandResponse->command_id = CMD_ERROR;
-            commandResponse->size = 0;
         }
     }
 
-    else if(command->command_id == CMD_SEE_USERS)
+
+    else if (command->command_id == CMD_SEE_ON_USERS) 
     {
-        printf("[Server]See users!\n");
-        if(tdL->loggedIn == 0)
-        {
-            commandResponse->command_id = CMD_ERROR;
-            commandResponse->size = 0;
-        } 
-        else
-        {
-            printf("[Server]See users list!\n");
-            commandResponse->command_id = CMD_SEE_USERS + 0x40;
+        printf("[Server] See online users!\n");
 
-            UsersList userList = getListOfUsersIDs();
-
-            commandResponse->size = userList.userCount + 1;
-            
-            if(commandResponse->data)
-            {
-                realloc(commandResponse->data, commandResponse->size);
-            }
-            else
-            {
-                commandResponse->data = malloc(commandResponse->size * sizeof(char));
-            }
-
-            commandResponse->data[0] = (char)userList.userCount;
-            for(unsigned int i = 0; i< userList.userCount; i++){
-                commandResponse->data[i+1] = (char)*(userList.usersList + i);
-            }
+        // Eliberează memoria pentru datele anterioare
+        if (commandResponse->data) {
+            free(commandResponse->data);
+            commandResponse->data = NULL;
         }
-    }
+        commandResponse->size = 0;
 
-    else if(command->command_id == CMD_SEE_ON_USERS)
-    {
-        printf("[Server]See online users!\n");
-        if(tdL->loggedIn == 0)
-        {
+        if (tdL->loggedIn == 0) {
+            // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
-        } 
-        else
-        {
-            printf("[Server]See online users list!\n");
+        } else {
             commandResponse->command_id = CMD_SEE_ON_USERS + 0x40;
-            commandResponse->size = 4;
-            // Hard coded users 10, 12, 16
-            if(commandResponse->data)
+            char** users = NULL;
+            int userCount = 0;
+
+            // Obține lista utilizatorilor logați (online)
+            if (getUsersOnline(&users, &userCount)) 
             {
-                realloc(commandResponse->data, 4);
-            }
-            else
+                printf("[Server] Număr de utilizatori online găsiți: %d\n", userCount);
+
+                if (userCount > 0) {
+                    // Concatenează utilizatorii într-un buffer unic
+                    size_t totalSize = 0;
+                    for (int i = 0; i < userCount; i++) 
+                    {
+                        totalSize += strlen(users[i]) + 1; // +1 pentru '\0'
+                    }
+
+                    commandResponse->data = malloc(totalSize);
+                    if (commandResponse->data == NULL) {
+                        printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor online.\n");
+                        for (int i = 0; i < userCount; i++) 
+                        {
+                            free(users[i]);
+                        }
+                        free(users);
+                        return;
+                    }
+
+                    char* currentPos = (char*)commandResponse->data;
+                    for (int i = 0; i < userCount; i++) {
+                        strcpy(currentPos, users[i]);
+                        currentPos += strlen(users[i]) + 1;
+                        free(users[i]); // Eliberăm memoria pentru fiecare utilizator
+                    }
+                    free(users);
+
+                    commandResponse->size = totalSize;
+                    printf("[Server] Lista de utilizatori online trimisă cu succes.\n");
+                } 
+                else 
+                {
+                    printf("[Server] Nu s-au găsit utilizatori online.\n");
+                    commandResponse->command_id = CMD_ERROR;
+                    commandResponse->size = 0;
+                }
+            } 
+            else 
             {
-                commandResponse->data = malloc(4 * sizeof(char));
+                printf("[Server] Nu s-a putut obține lista de utilizatori online.\n");
+                commandResponse->command_id = CMD_ERROR;
+                commandResponse->size = 0;
             }
-            commandResponse->data[0] = 3;
-            commandResponse->data[1] = 0xA1;
-            commandResponse->data[2] = 0xAF;
-            commandResponse->data[3] = 0xA2;
         }
     }
 
-    else if(command->command_id == CMD_SEE_OFF_USERS)
+
+   else if (command->command_id == CMD_SEE_OFF_USERS) 
     {
-        printf("[Server]See offline users!\n");
-        if(tdL->loggedIn == 0)
-        {
+        printf("[Server] See offline users!\n");
+
+        // Eliberează memoria pentru datele anterioare
+        if (commandResponse->data) {
+            free(commandResponse->data);
+            commandResponse->data = NULL;
+        }
+        commandResponse->size = 0;
+
+        if (tdL->loggedIn == 0) {
+            // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
-        } 
-        else
-        {
-            printf("[Server]See offline users list!\n");
-            commandResponse->command_id = CMD_SEE_ON_USERS + 0x40;
-            commandResponse->size = 4;
-            // Hard coded users 10, 12, 16
-            if(commandResponse->data)
+        } else {
+            commandResponse->command_id = CMD_SEE_OFF_USERS + 0x40;
+            char** users = NULL;
+            int userCount = 0;
+
+            // Obține lista utilizatorilor offline (neautentificați)
+            if (getUsersOffline(&users, &userCount)) 
             {
-                realloc(commandResponse->data, 4);
-            }
-            else
+                printf("[Server] Număr de utilizatori offline găsiți: %d\n", userCount);
+
+                if (userCount > 0) {
+                    // Concatenează utilizatorii într-un buffer unic
+                    size_t totalSize = 0;
+                    for (int i = 0; i < userCount; i++) 
+                    {
+                        totalSize += strlen(users[i]) + 1; // +1 pentru '\0'
+                    }
+
+                    commandResponse->data = malloc(totalSize);
+                    if (commandResponse->data == NULL) {
+                        printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor offline.\n");
+                        for (int i = 0; i < userCount; i++) 
+                        {
+                            free(users[i]);
+                        }
+                        free(users);
+                        return;
+                    }
+
+                    char* currentPos = (char*)commandResponse->data;
+                    for (int i = 0; i < userCount; i++) {
+                        strcpy(currentPos, users[i]);
+                        currentPos += strlen(users[i]) + 1;
+                        free(users[i]); // Eliberăm memoria pentru fiecare utilizator
+                    }
+                    free(users);
+
+                    commandResponse->size = totalSize;
+                    printf("[Server] Lista de utilizatori offline trimisă cu succes.\n");
+                } 
+                else 
+                {
+                    printf("[Server] Nu s-au găsit utilizatori offline.\n");
+                    commandResponse->command_id = CMD_ERROR;
+                    commandResponse->size = 0;
+                }
+            } 
+            else 
             {
-                commandResponse->data = malloc(4 * sizeof(char));
+                printf("[Server] Nu s-a putut obține lista de utilizatori offline.\n");
+                commandResponse->command_id = CMD_ERROR;
+                commandResponse->size = 0;
             }
-            commandResponse->data[0] = 3;
-            commandResponse->data[1] = 0xA1;
-            commandResponse->data[2] = 0xAF;
-            commandResponse->data[3] = 0xA2;
         }
     }
+
 
     else if(command->command_id == CMD_MSG_SEND)
     {
@@ -993,7 +1209,8 @@ int sendResponse(ClientCommunication *tdL)
             perror("[Server]Eroare la send() command_data.\n");
             return errno;
         }
-    } else{
+    } 
+    else{
         printf("[Server]NO COMMAND DATA\n");
     }
     printf("[Server]Send message back\n");

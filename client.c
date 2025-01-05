@@ -99,20 +99,13 @@ void build_quit_command(COMMAND *command)
     command->data = NULL;
 }
 
-void buildSeeUserNameCommand(COMMAND *command, unsigned int UID)
-{
-    command->command_id = CMD_SEE_USERNAME;
-    command->size = 1;
-    command->data = (char*)malloc(1);
-    command->data[0] = (char)UID;
-}
-
 /* 1. COMANDA SEE USERS */
 
 void buildSeeUsersCommand(COMMAND* command)
 {
     command->command_id = CMD_SEE_USERS;
     command->size = 0;
+    command->data = NULL;
 }
 
 /* 2. COMANDA SEE ONLINE USERS */
@@ -121,6 +114,7 @@ void buildSeeOnlineUsersCommand(COMMAND* command)
 {
     command->command_id = CMD_SEE_ON_USERS;
     command->size = 0;
+    command->data = NULL;
 }
 
 /* 3. COMANDA SEE OFFLINE USERS */
@@ -129,6 +123,7 @@ void buildSeeOfflineUsersCommand(COMMAND* command)
 {
     command->command_id = CMD_SEE_OFF_USERS;
     command->size = 0;
+    command->data = NULL;
 }
 
 void buildSendMessage(COMMAND* command) 
@@ -161,12 +156,6 @@ void buildSendMessage(COMMAND* command)
 
 
 /* 5. COMANDA REPLY MESSAGE*/
-
-/*void buildReplyMessage(COMMAND* command)
-{
-    command->command_id = CMD_REPLY_MSG;
-    command->size = 0;
-}*/
 
 void buildReplyMessage(COMMAND* command, int sd) 
 {
@@ -277,6 +266,7 @@ void buildLogout(COMMAND* command)
 {
     command->command_id = CMD_LOGOUT;
     command->size = 0;
+    command->data = 0;
 }
 
 /*---------------------------------------------------------------------*/
@@ -381,37 +371,79 @@ void interpretResponse(int sd)
         command_resp.success = 1;
     }
 
-    if (command_resp.command_id == CMD_SEE_USERS + 0x40)
+    if (command_resp.command_id == CMD_SEE_USERS + 0x40) 
     {
-        printf("Users Success!: \n");
-        unsigned int usersSize = command_resp.data[0];
-        for(unsigned int i = 1; i< command_resp.size; i++)
+        printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
+        for (unsigned int i = 0; i < command_resp.size; i++) 
         {
-            printf("UID %d \n", command_resp.data[i]);
-            buildSeeUserNameCommand(&command, command_resp.data[i]);
-            sendRequest(sd, &command);
-            receiveRequest(sd, &respUserName);
-            if(respUserName.command_id == CMD_SEE_USERNAME + 0x40)
-            {
-                printf("See UserName Success!\n");
-                printf("See user name %s \n", respUserName.data);
-                
-            }
+            printf("%02X ", command_resp.data[i]);
+            if ((i + 1) % 16 == 0) printf("\n");
         }
+        printf("\n");
+
+        printf("Utilizatorii disponibili:\n");
+
+        // Parcurgem utilizatorii din bufferul primit
+        unsigned int offset = 0;
+        while (offset < command_resp.size) 
+        {
+            char* currentUser = (char*)(command_resp.data + offset);
+            printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
+            printf("%s\n", currentUser);
+            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+        }
+
         command_resp.success = 1;
     }
 
+
     if (command_resp.command_id == CMD_SEE_ON_USERS + 0x40)
     {
-        printf("Online users Success!: \n");
-        unsigned int onusersSize = command_resp.data[0];
-        command_resp.success = 1;
+       printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
+        for (unsigned int i = 0; i < command_resp.size; i++) 
+        {
+            printf("%02X ", command_resp.data[i]);
+            if ((i + 1) % 16 == 0) printf("\n");
+        }
+        printf("\n");
+
+        printf("Utilizatorii online disponibili:\n");
+
+        // Parcurgem utilizatorii din bufferul primit
+        unsigned int offset = 0;
+        while (offset < command_resp.size) 
+        {
+            char* currentUser = (char*)(command_resp.data + offset);
+            printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
+            printf("%s\n", currentUser);
+            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+        }
+
+        command_resp.success = 1;;
     }
 
     if (command_resp.command_id == CMD_SEE_OFF_USERS + 0x40)
     {
-        printf("Offline users Success!: \n");
-        unsigned int offusersSize = command_resp.data[0];
+        printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
+        for (unsigned int i = 0; i < command_resp.size; i++) 
+        {
+            printf("%02X ", command_resp.data[i]);
+            if ((i + 1) % 16 == 0) printf("\n");
+        }
+        printf("\n");
+
+        printf("Utilizatorii offline:\n");
+
+        // Parcurgem utilizatorii din bufferul primit
+        unsigned int offset = 0;
+        while (offset < command_resp.size) 
+        {
+            char* currentUser = (char*)(command_resp.data + offset);
+            printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
+            printf("%s\n", currentUser);
+            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+        }
+
         command_resp.success = 1;
     }
     

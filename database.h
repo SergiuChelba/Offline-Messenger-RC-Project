@@ -36,7 +36,6 @@ CREATE TABLE chat_1_2 (
 
 */
 
-
 int registerUserDB(char *userName, char* passWord)
 {
     sqlite3* dataBase;
@@ -78,304 +77,102 @@ int loginUserDB(char* userName, char* passWord, unsigned int* userID)
 {
     sqlite3* dataBase;
     sqlite3_stmt* queryStmt;
+    sqlite3_stmt* updateStmt;
     int result = 0;
     int dbResult = sqlite3_open(DB_NAME, &dataBase);
 
-    if (dbResult != SQLITE_OK){
+    if (dbResult != SQLITE_OK) {
         printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
         return 0;
     }
 
     const char* loginQuery = "SELECT * FROM users WHERE username = ? AND password = ?";
 
-    if(sqlite3_prepare_v2(dataBase, loginQuery, -1, &queryStmt, NULL) != SQLITE_OK)
-    {
+    // Pregătim interogarea pentru verificarea utilizatorului
+    if (sqlite3_prepare_v2(dataBase, loginQuery, -1, &queryStmt, NULL) != SQLITE_OK) {
         printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
         return 0;
     }
 
     sqlite3_bind_text(queryStmt, 1, userName, -1, SQLITE_STATIC);
     sqlite3_bind_text(queryStmt, 2, passWord, -1, SQLITE_STATIC);
 
-    if(sqlite3_step(queryStmt) == SQLITE_ROW)
-    {
-        *userID = sqlite3_column_int(queryStmt, 0);
-        if (*userID > 0)
-        {
-            result = 1;
-        }
-    }
-
-    sqlite3_finalize(queryStmt);
-    if (result == 1)
-    {
-        return 1;
-    }
-    return 0;
-}
-/*
-UsersList getListOfUsersIDs()
-{
-
-    UsersList userList;
-    memset(&userList, 0, sizeof(UsersList));
-
-    sqlite3* dataBase;
-    sqlite3_stmt* queryStmt;
-    int result;
-    int dbResult = sqlite3_open(DB_NAME, &dataBase);
-
-    if (dbResult != SQLITE_OK)
-    {
-        printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
-        return userList;
-    }
-
-    const char* countUsers = "SELECT COUNT(*) FROM users";
-
-    if(sqlite3_prepare_v2(dataBase, countUsers, -1, &queryStmt, NULL) != SQLITE_OK)
-    {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        return userList;
-    }
-
-    if(sqlite3_step(queryStmt) == SQLITE_ROW)
-    {
-        result = sqlite3_column_int(queryStmt, 0);
-    }
-
-    userList.userCount = result;
-    sqlite3_finalize(queryStmt);
-    unsigned int* usersUidsList = (unsigned int*)malloc(sizeof(unsigned int) * result);
-    // 
-    const char* usersQuery = "SELECT * FROM users";
-
-    if(sqlite3_prepare_v2(dataBase, usersQuery, -1, &queryStmt, NULL) != SQLITE_OK)
-    {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-    }
-   
-    unsigned int index = 0;
-    while ((result = sqlite3_step(queryStmt)) == SQLITE_ROW) 
-    {
-        int user_id = sqlite3_column_int(queryStmt, 0);  // Get the value of the first column (id)
-        printf("ID: %d\n", user_id);
-        usersUidsList[index] = (unsigned int)user_id;
-        index++;
-    }
-
-    userList.usersList = usersUidsList;
-    sqlite3_finalize(queryStmt);
-    return userList;
-}
-
-int getUserNameByUID(unsigned int uid, char** userNameResult)
-{
-    sqlite3* dataBase;
-    sqlite3_stmt* queryStmt;
-    int result;
-    char* userName = NULL;
-    int dbResult = sqlite3_open(DB_NAME, &dataBase);
-
-    if (dbResult != SQLITE_OK){
-        printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
-        return 0;
-    }
-
-    const char* query = "SELECT username FROM users WHERE id = ?;";
-
-    if(sqlite3_prepare_v2(dataBase, query, -1, &queryStmt, NULL) != SQLITE_OK)
-    {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        return 0;
-    }
-    
-    sqlite3_bind_int(queryStmt, 1, uid);
-
-
-    result = sqlite3_step(queryStmt);
-    if (result == SQLITE_ROW)
-    {
-        userName = sqlite3_column_text(queryStmt, 0);
-        printf("DB username %s\n", userName);
-
-        *userNameResult = (char*)malloc(strlen(userName) + 1);  // +1 for null terminator
-        if (*userNameResult == NULL) {
-            printf("Memory allocation failed.\n");
-            sqlite3_finalize(queryStmt);
-            sqlite3_close(dataBase);
-            return 0;  // Return failure if malloc fails
-        }
-        strcpy(*userNameResult, userName);  // Copy the username to the allocated memory
-        printf("DB username: %s\n", *userNameResult);
-    }
-    else
-    {
-        return 0;
-    }
-
-    sqlite3_finalize(queryStmt);
-    return 1;
-}*/
-/*
-UsersList getListOfUsersIDs() 
-{
-    UsersList userList = {0, NULL};
-
-    sqlite3* dataBase;
-    sqlite3_stmt* queryStmt;
-
-    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
-        printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
-        return userList;
-    }
-
-    const char* countUsers = "SELECT COUNT(*) FROM users";
-    if (sqlite3_prepare_v2(dataBase, countUsers, -1, &queryStmt, NULL) != SQLITE_OK) {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        sqlite3_close(dataBase);
-        return userList;
-    }
-
     if (sqlite3_step(queryStmt) == SQLITE_ROW) {
-        userList.userCount = sqlite3_column_int(queryStmt, 0);
-    }
-    sqlite3_finalize(queryStmt);
+        *userID = sqlite3_column_int(queryStmt, 0);  // Obținem ID-ul utilizatorului
+        if (*userID > 0) {
+            // Utilizatorul a fost găsit, acum îl logăm
+            const char* updateQuery = "UPDATE users SET Logat = 1 WHERE username = ?";
 
-    if (userList.userCount == 0) {
-        sqlite3_close(dataBase);
-        return userList;
-    }
+            // Pregătim interogarea de actualizare a câmpului Logat
+            if (sqlite3_prepare_v2(dataBase, updateQuery, -1, &updateStmt, NULL) != SQLITE_OK) {
+                printf("Failed to prepare update statement: %s\n", sqlite3_errmsg(dataBase));
+                sqlite3_finalize(queryStmt);
+                sqlite3_close(dataBase);
+                return 0;
+            }
 
-    userList.usersList = malloc(sizeof(unsigned int) * userList.userCount);
-    if (!userList.usersList) {
-        printf("Memory allocation failed.\n");
-        sqlite3_close(dataBase);
-        return userList;
-    }
+            sqlite3_bind_text(updateStmt, 1, userName, -1, SQLITE_STATIC);
 
-    const char* usersQuery = "SELECT id FROM users";
-    if (sqlite3_prepare_v2(dataBase, usersQuery, -1, &queryStmt, NULL) != SQLITE_OK) {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        free(userList.usersList);
-        userList.usersList = NULL;
-        sqlite3_close(dataBase);
-        return userList;
-    }
+            // Executăm interogarea de actualizare
+            if (sqlite3_step(updateStmt) != SQLITE_DONE) {
+                printf("Failed to update Logat status: %s\n", sqlite3_errmsg(dataBase));
+                sqlite3_finalize(updateStmt);
+                sqlite3_finalize(queryStmt);
+                sqlite3_close(dataBase);
+                return 0;
+            }
 
-    unsigned int index = 0;
-    while (sqlite3_step(queryStmt) == SQLITE_ROW && index < userList.userCount) 
-    {
-        userList.usersList[index++] = sqlite3_column_int(queryStmt, 0);
+            // Finalizăm interogările
+            sqlite3_finalize(updateStmt);
+            result = 1;  // Logarea a fost efectuată cu succes
+        }
     }
 
     sqlite3_finalize(queryStmt);
     sqlite3_close(dataBase);
-    return userList;
-}*/
 
-UsersList getListOfUsersIDs() {
-    UsersList userList = {0, NULL};
-
-    sqlite3* dataBase;
-    sqlite3_stmt* queryStmt;
-
-    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
-        printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
-        return userList;
-    }
-
-    const char* countUsers = "SELECT COUNT(*) FROM users";
-    if (sqlite3_prepare_v2(dataBase, countUsers, -1, &queryStmt, NULL) != SQLITE_OK) {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        sqlite3_close(dataBase);
-        return userList;
-    }
-
-    if (sqlite3_step(queryStmt) == SQLITE_ROW) {
-        userList.userCount = sqlite3_column_int(queryStmt, 0);
-    }
-    sqlite3_finalize(queryStmt);
-
-    if (userList.userCount == 0) {
-        sqlite3_close(dataBase);
-        return userList;
-    }
-
-    userList.usersList = malloc(sizeof(unsigned int) * userList.userCount);
-    if (!userList.usersList) {
-        printf("Memory allocation failed.\n");
-        sqlite3_close(dataBase);
-        return userList;
-    }
-
-    const char* usersQuery = "SELECT id FROM users";
-    if (sqlite3_prepare_v2(dataBase, usersQuery, -1, &queryStmt, NULL) != SQLITE_OK) {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        free(userList.usersList);
-        userList.usersList = NULL;
-        sqlite3_close(dataBase);
-        return userList;
-    }
-
-    unsigned int index = 0;
-    while (sqlite3_step(queryStmt) == SQLITE_ROW && index < userList.userCount) {
-        userList.usersList[index++] = sqlite3_column_int(queryStmt, 0);
-    }
-
-    sqlite3_finalize(queryStmt);
-    sqlite3_close(dataBase);
-    return userList;
+    return result;  // Dacă 1, logarea a fost reușită, altfel 0
 }
 
-int getUserNameByUID(unsigned int uid, char** userNameResult)
+// Function to log out a user (set Logat = 0 in the database)
+int logoutUserDB(char* userName)
 {
     sqlite3* dataBase;
-    sqlite3_stmt* queryStmt;
-    int result;
-    char* userName = NULL;
+    sqlite3_stmt* updateStmt;
+    int result = 0;
     int dbResult = sqlite3_open(DB_NAME, &dataBase);
 
-    if (dbResult != SQLITE_OK){
+    if (dbResult != SQLITE_OK) {
         printf("Error to open %s db error %s \n", DB_NAME, sqlite3_errmsg(dataBase));
         return 0;
     }
 
-    const char* query = "SELECT username FROM users WHERE id = ?;";
+    const char* updateQuery = "UPDATE users SET Logat = 0 WHERE username = ?";
 
-    if(sqlite3_prepare_v2(dataBase, query, -1, &queryStmt, NULL) != SQLITE_OK)
-    {
-        printf("Failed to prepare statement: %s\n", sqlite3_errmsg(dataBase));
-        return 0;
-    }
-    
-    sqlite3_bind_int(queryStmt, 1, uid);
-
-
-    result = sqlite3_step(queryStmt);
-    if (result == SQLITE_ROW)
-    {
-        userName = sqlite3_column_text(queryStmt, 0);
-        printf("DB username %s\n", userName);
-
-        *userNameResult = (char*)malloc(strlen(userName) + 1);  // +1 for null terminator
-        if (*userNameResult == NULL) {
-            printf("Memory allocation failed.\n");
-            sqlite3_finalize(queryStmt);
-            sqlite3_close(dataBase);
-            return 0;  // Return failure if malloc fails
-        }
-        strcpy(*userNameResult, userName);  // Copy the username to the allocated memory
-        printf("DB username: %s\n", *userNameResult);
-    }
-    else
-    {
+    // Prepare the update query to log out the user
+    if (sqlite3_prepare_v2(dataBase, updateQuery, -1, &updateStmt, NULL) != SQLITE_OK) {
+        printf("Failed to prepare update statement: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
         return 0;
     }
 
-    sqlite3_finalize(queryStmt);
-    return 1;
+    sqlite3_bind_text(updateStmt, 1, userName, -1, SQLITE_STATIC);
+
+    // Execute the update query
+    if (sqlite3_step(updateStmt) != SQLITE_DONE) {
+        printf("Failed to update Logat status: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_finalize(updateStmt);
+        sqlite3_close(dataBase);
+        return 0;
+    }
+
+    sqlite3_finalize(updateStmt);
+    sqlite3_close(dataBase);
+
+    return 1;  // Success
 }
+
 
 void normalizeString(char* str) 
 {
@@ -481,106 +278,6 @@ int sendMessageDB(const char* currentUser, const char* recipient, const char* me
 
     return 1;
 }
-/*
-int getConversationHistory(const char* currentUser, const char* recipient, char*** messages, int* messageCount) {
-    sqlite3* dataBase;
-    sqlite3_stmt* stmt;
-    char tableName1[256], tableName2[256], query[1024];
-    char selectedTableName[256] = {0}; // Buffer sigur pentru numele tabelei
-    int result;
-
-    char normalizedCurrentUser[256], normalizedRecipient[256];
-    strncpy(normalizedCurrentUser, currentUser, sizeof(normalizedCurrentUser) - 1);
-    strncpy(normalizedRecipient, recipient, sizeof(normalizedRecipient) - 1);
-    normalizeString(normalizedCurrentUser);
-    normalizeString(normalizedRecipient);
-
-    *messages = NULL;  // Inițializează pointerul de mesaje
-    *messageCount = 0; // Inițializează numărul de mesaje
-
-    // Deschiderea bazei de date
-    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
-        printf("Eroare la deschiderea bazei de date: %s\n", sqlite3_errmsg(dataBase));
-        return 0;
-    }
-
-    // Construirea numelor posibile ale tabelei
-    snprintf(tableName1, sizeof(tableName1), "conv_%s_%s", normalizedCurrentUser, normalizedRecipient);
-    snprintf(tableName2, sizeof(tableName2), "conv_%s_%s", normalizedRecipient, normalizedCurrentUser);
-
-    // Verifică dacă tabela există
-    snprintf(query, sizeof(query), 
-        "SELECT name FROM sqlite_master WHERE type='table' AND (name='%s' OR name='%s');", 
-        tableName1, tableName2);
-
-    printf("[Debug] Interogare verificare existență tabelă: %s\n", query);
-
-    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
-        printf("Eroare la verificarea existenței tabelei: %s\n", sqlite3_errmsg(dataBase));
-        sqlite3_close(dataBase);
-        return 0;
-    }
-
-    result = sqlite3_step(stmt);
-    if (result == SQLITE_ROW) {
-        const char* tempTableName = (const char*)sqlite3_column_text(stmt, 0);
-        if (tempTableName != NULL) {
-            strncpy(selectedTableName, tempTableName, sizeof(selectedTableName) - 1);
-            selectedTableName[sizeof(selectedTableName) - 1] = '\0';
-        } else {
-            printf("[Server] Eroare: Nu am putut obține numele tabelei.\n");
-            sqlite3_finalize(stmt);
-            sqlite3_close(dataBase);
-            return 0;
-        }
-    } else {
-        printf("[Server] Nu există mesaje pentru această conversație.\n");
-        sqlite3_finalize(stmt);
-        sqlite3_close(dataBase);
-        return 0;
-    }
-    sqlite3_finalize(stmt);
-
-    // Interoghează mesajele din tabelă
-    snprintf(query, sizeof(query), "SELECT date, sender, message FROM \"%s\" ORDER BY date;", selectedTableName);
-
-    printf("[Debug] Interogare pentru selectarea mesajelor: %s\n", query);
-
-    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
-        printf("Eroare la pregătirea interogării: %s\n", sqlite3_errmsg(dataBase));
-        sqlite3_close(dataBase);
-        return 0;
-    }
-
-    // Alocă și salvează mesaje
-    while ((result = sqlite3_step(stmt)) == SQLITE_ROW) 
-    {
-        const char* date = (const char*)sqlite3_column_text(stmt, 0);
-        const char* sender = (const char*)sqlite3_column_text(stmt, 1);
-        const char* message = (const char*)sqlite3_column_text(stmt, 2);
-
-        char formattedMessage[1024];
-        snprintf(formattedMessage, sizeof(formattedMessage), "[%s] %s: %s", date, sender, message);
-
-        char** temp = realloc(*messages, (*messageCount + 1) * sizeof(char*));
-        if (temp == NULL) {
-            printf("[Server] Eroare la alocarea memoriei pentru mesaje.\n");
-            sqlite3_finalize(stmt);
-            sqlite3_close(dataBase);
-            return 0;
-        }
-        *messages = temp;
-        (*messages)[*messageCount] = strdup(formattedMessage); // Copiem mesajul
-        (*messageCount)++;
-    }
-
-
-    sqlite3_finalize(stmt);
-    sqlite3_close(dataBase);
-
-    return 1;
-}
-*/
 
 int getConversationHistory(const char* currentUser, const char* recipient, char*** messages, int* messageCount) 
 {
@@ -867,6 +564,126 @@ int replyMessage(const char* username, const char* recipient, int replyToMessage
     }
 
     printf("Mesaj de răspuns inserat cu succes în tabela %s.\n", existingTable);
+    sqlite3_finalize(stmt);
+    sqlite3_close(dataBase);
+
+    return 1;
+}
+
+int getUsers(char*** users, int* userCount) 
+{
+    sqlite3* dataBase;
+    sqlite3_stmt* stmt;
+    char query[1024];
+    int result;
+
+    *users = NULL;
+    *userCount = 0;
+
+    // Deschiderea bazei de date
+    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
+        printf("Eroare la deschiderea bazei de date: %s\n", sqlite3_errmsg(dataBase));
+        return 0;
+    }
+
+    // Interogare pentru a obține utilizatorii din tabelul "users"
+    snprintf(query, sizeof(query), "SELECT username FROM users;");
+
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
+        printf("Eroare la pregătirea interogării: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
+        return 0;
+    }
+
+    // Procesarea rezultatelor
+    while ((result = sqlite3_step(stmt)) == SQLITE_ROW) {
+        const char* username = (const char*)sqlite3_column_text(stmt, 0);
+
+        *users = realloc(*users, (*userCount + 1) * sizeof(char*));
+        (*users)[*userCount] = strdup(username);
+        (*userCount)++;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(dataBase);
+
+    return 1;
+}
+
+int getUsersOnline(char*** users, int* userCount) 
+{
+    sqlite3* dataBase;
+    sqlite3_stmt* stmt;
+    char query[1024];
+    int result;
+
+    *users = NULL;
+    *userCount = 0;
+
+    // Deschiderea bazei de date
+    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
+        printf("Eroare la deschiderea bazei de date: %s\n", sqlite3_errmsg(dataBase));
+        return 0;
+    }
+
+    // Modificăm interogarea pentru a obține doar utilizatorii logați
+    snprintf(query, sizeof(query), "SELECT username FROM users WHERE Logat = 1;");
+
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
+        printf("Eroare la pregătirea interogării: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
+        return 0;
+    }
+
+    // Procesarea rezultatelor
+    while ((result = sqlite3_step(stmt)) == SQLITE_ROW) {
+        const char* username = (const char*)sqlite3_column_text(stmt, 0);
+
+        *users = realloc(*users, (*userCount + 1) * sizeof(char*));
+        (*users)[*userCount] = strdup(username);
+        (*userCount)++;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(dataBase);
+
+    return 1;
+}
+
+int getUsersOffline(char*** users, int* userCount) 
+{
+    sqlite3* dataBase;
+    sqlite3_stmt* stmt;
+    char query[1024];
+    int result;
+
+    *users = NULL;
+    *userCount = 0;
+
+    // Deschiderea bazei de date
+    if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) {
+        printf("Eroare la deschiderea bazei de date: %s\n", sqlite3_errmsg(dataBase));
+        return 0;
+    }
+
+    // Modificăm interogarea pentru a obține doar utilizatorii logați
+    snprintf(query, sizeof(query), "SELECT username FROM users WHERE Logat = 0;");
+
+    if (sqlite3_prepare_v2(dataBase, query, -1, &stmt, NULL) != SQLITE_OK) {
+        printf("Eroare la pregătirea interogării: %s\n", sqlite3_errmsg(dataBase));
+        sqlite3_close(dataBase);
+        return 0;
+    }
+
+    // Procesarea rezultatelor
+    while ((result = sqlite3_step(stmt)) == SQLITE_ROW) {
+        const char* username = (const char*)sqlite3_column_text(stmt, 0);
+
+        *users = realloc(*users, (*userCount + 1) * sizeof(char*));
+        (*users)[*userCount] = strdup(username);
+        (*userCount)++;
+    }
+
     sqlite3_finalize(stmt);
     sqlite3_close(dataBase);
 
