@@ -477,19 +477,15 @@ void interpretResponse(int sd)
         size_t offset = 0;
         while (offset < (size_t)command_resp.size) 
         {
-            char* sender = (char*)(command_resp.data + offset); 
-            offset += strlen(sender) + 1;
+            char* fullMessage = (char*)(command_resp.data + offset); 
+            offset += strlen(fullMessage) + 1; 
 
-            if (offset >= (size_t)command_resp.size) break; 
-
-            char* message = (char*)(command_resp.data + offset); 
-            offset += strlen(message) + 1; 
-
-            printf("[De la: %s] %s\n", sender, message);
+            printf("%s\n", fullMessage);
         }
 
         command_resp.success = 1;
     }
+
 
 
    if (command_resp.command_id == CMD_SEE_CONV + 0x40) 

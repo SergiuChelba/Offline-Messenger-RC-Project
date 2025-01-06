@@ -794,6 +794,7 @@ int getUnreadMessages(const char* username, char*** messages, int* messageCount)
     char query[1024];
     char** resultMessages = NULL;
     int resultCount = 0;
+    char updateQuery[1024];
 
     // Deschiderea bazei de date
     if (sqlite3_open(DB_NAME, &dataBase) != SQLITE_OK) 
@@ -824,12 +825,16 @@ int getUnreadMessages(const char* username, char*** messages, int* messageCount)
             // username este primul nume
             snprintf(query, sizeof(query),
                 "SELECT id, sender, message FROM %s WHERE read1 = 0;", tableName);
+            snprintf(updateQuery, sizeof(updateQuery),
+                "UPDATE %s SET read1 = 1 WHERE id = ?;", tableName);
         } 
         else if (strstr(tableName, username) != NULL) 
         {
             // username este al doilea nume
             snprintf(query, sizeof(query),
                 "SELECT id, sender, message FROM %s WHERE read2 = 0;", tableName);
+            snprintf(updateQuery, sizeof(updateQuery),
+                "UPDATE %s SET read2 = 1 WHERE id = ?;", tableName);
         } 
         else 
         {
@@ -845,7 +850,7 @@ int getUnreadMessages(const char* username, char*** messages, int* messageCount)
             continue;
         }
 
-        // Iterăm prin mesajele necitite și le adăugăm la lista de rezultate
+        // Salvăm toate mesajele necitite
         while (sqlite3_step(messageStmt) == SQLITE_ROW) 
         {
             int messageId = sqlite3_column_int(messageStmt, 0);
@@ -861,20 +866,9 @@ int getUnreadMessages(const char* username, char*** messages, int* messageCount)
             resultMessages[resultCount] = strdup(formattedMessage);
             resultCount++;
 
-            // Marcare ca citit
-            if (strncmp(tableName + 5, username, strlen(username)) == 0) 
-            {
-                // username este primul nume
-                snprintf(query, sizeof(query), "UPDATE %s SET read1 = 1 WHERE id = ?;", tableName);
-            } 
-            else 
-            {
-                // username este al doilea nume
-                snprintf(query, sizeof(query), "UPDATE %s SET read2 = 1 WHERE id = ?;", tableName);
-            }
-
+            // Marcare ca citit într-o etapă ulterioară
             sqlite3_stmt* updateStmt;
-            if (sqlite3_prepare_v2(dataBase, query, -1, &updateStmt, NULL) != SQLITE_OK) 
+            if (sqlite3_prepare_v2(dataBase, updateQuery, -1, &updateStmt, NULL) != SQLITE_OK) 
             {
                 printf("[Database] Eroare la pregătirea interogării de update pentru %s: %s\n",
                     tableName, sqlite3_errmsg(dataBase));
