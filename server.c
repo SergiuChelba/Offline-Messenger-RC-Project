@@ -31,7 +31,7 @@ extern int errno;
 
 typedef struct ClientData 
 {
-    int idThread; // Contor pentru clienți
+    int idThread; // Contor pentru clienti - fiecare fir de executie corespunde unui client
     int socketID; // Socket din accept
     int loggedIn; // Starea utilizatorului: 0 = delogat / 1 = logat
     unsigned int dataBaseID;
@@ -39,12 +39,10 @@ typedef struct ClientData
     COMMAND* com_response;
     struct UserData* userData; // Datele utilizatorului curent
     struct MessageData* messageData; // Mesajul curent
-    struct ConversationData* conversationData; // Lista de conversații
-    uint8_t numConversations; // Numărul de conversații
+    struct ConversationData* conversationData; // Lista de conversatii
+    uint8_t numConversations; // Numarul de conversatii
     uint8_t numUsers;
 } ClientCommunication;
-
-struct ClientData* connectedClients[100]; //hardcodat momentan
 
 /*---------------------------------------------------------------------*/
 
@@ -53,8 +51,7 @@ struct ClientData* connectedClients[100]; //hardcodat momentan
 static void* treat(void *arg)
 {
     struct ClientData tdL = *((struct ClientData *)arg);
-    printf("[thread %d] Asteptam comenzile clientului...\n", tdL.idThread);
-    connectedClients[tdL.idThread] = &tdL;
+    printf("[thread %d] Așteptăm comenzile clientului...\n", tdL.idThread);
     fflush(stdout);
 
     pthread_detach(pthread_self());
@@ -121,7 +118,6 @@ void clientLoop(void *arg)
 void handle_quit_command(ClientCommunication *tdL) 
 {
     printf("[Thread %d] Clientul a cerut deconectarea.\n", tdL->idThread);
-    connectedClients[tdL->idThread]->loggedIn = 0;
     close(tdL->socketID);  // Închidem conexiunea cu clientul
     pthread_exit(NULL);  // Ieșim din thread
 }
@@ -213,12 +209,12 @@ int main()
 void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL) 
 {
     
-    //Function which receive bytesCount, buffer to data and command_received data
-    // 1st byte is command_id
+    //Functia care primeste bytesCount, buffer to data si command_received data
+    // I-ul byte este command_id
     COMMAND* command = tdL->com_received;
     command->command_id = buffer[0]; 
 
-    // Total bytes -1 shall be command size
+    // Total bytes -1 = command size
     printf("1\n");
     command->size = bytesCount - 1;
     if (command->size > 0) 
@@ -239,14 +235,14 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
     {
         printf("[Server] Login.\n");
 
-        // Login structure: 1st byte username size, 2nd byte password size, N bytes username, M bytes password.
+        // Structura Login: 1st byte = username size, 2nd byte = password size, N bytes = username, M bytes = password.
         if (command->size > 0) 
         {
             char username[256];
             char password[256];
             snprintf(username, command->size + 1, "%s", command->data);
-            printf("[Server]Login message\n");
-            if(tdL->userData == NULL){
+            if(tdL->userData == NULL)
+            {
                 tdL->userData = (struct UserData*)malloc(sizeof(struct UserData));
             }
             memcpy(tdL->userData->username, command->data + 2, command->data[0]);
@@ -262,24 +258,18 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
     {
         printf("[Server] Register.\n");
 
-        // Login structure: 1st byte username size, 2nd byte password size, N bytes username, M bytes password.
+        // Structura Register: 1st byte = username size, 2nd byte = password size, N bytes = username, M bytes = password.
         if (command->size > 0) 
         {
             char username[256];
             char password[256];
             snprintf(username, command->size + 1, "%s", command->data);
-            printf("[Server]Register message\n");
             if(tdL->userData == NULL)
             {
                 tdL->userData = (struct UserData*)malloc(sizeof(struct UserData));
             }
             memcpy(tdL->userData->username, command->data + 2, command->data[0]);
             memcpy(tdL->userData->password, command->data + 2 + command->data[0], command->data[1]);
-            // if (registerUserDB(tdL->userData->username, tdL->userData->password)){
-
-            // } else {
-
-            // }
         } 
         else 
         {
@@ -290,7 +280,6 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
     else if (command->command_id == CMD_QUIT) 
     {
         printf("[Server] Procesăm comanda Quit.\n");
-        //handle_quit_command(tdL); // Gestionăm ieșirea clientului
     } 
 
     else if (command->command_id == CMD_MSG_SEND) 
@@ -303,29 +292,29 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             char recipient[100];
             char message[256];
 
-            // Verificăm dacă datele sunt valide
+            // Verificam daca datele sunt valide
             if (command->size < recipientSize + 1) 
             {
                 printf("[Server] Eroare: Dimensiunea datelor este insuficientă pentru CMD_MSG_SEND.\n");
                 return;
             }
 
-            // Extragem destinatarul și mesajul
+            // Extragem destinatarul si mesajul
             memcpy(recipient, command->data + 1, recipientSize);
-            recipient[recipientSize] = '\0'; // Adăugăm terminatorul de șir
+            recipient[recipientSize] = '\0'; // Adaugam terminatorul de sir
 
             uint16_t messageSize = command->size - 1 - recipientSize;
             memcpy(message, command->data + 1 + recipientSize, messageSize);
-            message[messageSize] = '\0'; // Adăugăm terminatorul de șir
+            message[messageSize] = '\0'; // Adaugam terminatorul de sir
 
             printf("[Server] Destinatar: %s, Mesaj: %s\n", recipient, message);
 
             tdL->messageData = malloc(sizeof(struct MessageData));
-            if (tdL->messageData == NULL) {
-                perror("[Server] Eroare la alocarea memoriei pentru MessageData");
+            if (tdL->messageData == NULL) 
+            {
+                perror("[Server] Eroare la alocarea memoriei pentru MessageData!");
                 return;
             }
-
 
             strncpy(tdL->messageData->recipient, recipient, sizeof(tdL->messageData->recipient) - 1);
             tdL->messageData->recipient[sizeof(tdL->messageData->recipient) - 1] = '\0';
@@ -364,7 +353,7 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
             memcpy(recipient, command->data + 1, userLen);
             recipient[userLen] = '\0'; // Adăugăm terminatorul de șir
 
-            printf("[Server] Istoricul conversatiei cu: %s\n", recipient);
+            printf("[Server] Istoricul conversației cu: %s\n", recipient);
 
             if (tdL->messageData == NULL) 
             {
@@ -650,17 +639,9 @@ void interpretRequest(int bytesCount, char *buffer, ClientCommunication *tdL)
         }
     }
 
-
     else 
     {
         printf("[Server] Unknown command ID=%X.\n", command->command_id);
-
-        // Trimitem un răspuns de eroare
-        // command_raspuns.command_id = 0xFF; // Cod de eroare
-        // command_raspuns.size = 0;
-        // command_raspuns.data = NULL;
-
-        //  send_command(tdL->socketID, &command_raspuns);
     }
 
     //Eliberăm memoria dacă datele comenzii au fost alocate
@@ -714,16 +695,16 @@ void handleRequest(ClientCommunication *tdL)
         }
     }
 
-    
-
     else if (command->command_id == CMD_REGISTER)
     {
         // SUCCES!
         printf("[Server]User tries to register !\n");
         printf("[Server] %s! \n", tdL->userData->username);
         printf("[Server] %s! \n", tdL->userData->password);
+
         // Dummy register check
-        if (registerUserDB(tdL->userData->username, tdL->userData->password) == 1){
+        if (registerUserDB(tdL->userData->username, tdL->userData->password) == 1)
+        {
             commandResponse->command_id = CMD_REGISTER + 0x40;
             commandResponse->size = 0;
             printf("\nRegister OK!\n");
@@ -735,27 +716,24 @@ void handleRequest(ClientCommunication *tdL)
     {
         printf("[Server] Logout!\n");
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             printf("[Server] Utilizatorul nu este logat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
             return;
         }
 
-        // Apelăm funcția logoutUserDB din database.h
-        if (logoutUserDB(tdL->userData->username)) {
+        if (logoutUserDB(tdL->userData->username)) 
+        {
             printf("[Server] Utilizatorul %s a fost delogat cu succes.\n", tdL->userData->username);
-
-            // Resetează datele utilizatorului
             resetUserData(tdL->userData);
-
-            // Marchează utilizatorul ca delogat
             tdL->loggedIn = 0;
-
-            // Trimitem un răspuns de succes
             commandResponse->command_id = CMD_EXECUTED_OK;
             commandResponse->size = 0;
-        } else {
+        } 
+        else 
+        {
             printf("[Server] Eroare la delogare pentru utilizatorul %s.\n", tdL->userData->username);
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -765,7 +743,8 @@ void handleRequest(ClientCommunication *tdL)
     {
         printf("[Server] Quit!\n");
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             printf("[Server] Utilizatorul nu este logat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -773,16 +752,11 @@ void handleRequest(ClientCommunication *tdL)
         }
 
         // Apelăm funcția quitUserDB din database.h
-        if (quitUserDB(tdL->userData->username)) {
+        if (quitUserDB(tdL->userData->username)) 
+        {
             printf("[Server] Utilizatorul %s a fost delogat prin quit.\n", tdL->userData->username);
-
-            // Resetează datele utilizatorului
             resetUserData(tdL->userData);
-
-            // Marchează utilizatorul ca delogat
             tdL->loggedIn = 0;
-
-            // Trimitem un răspuns de succes
             commandResponse->command_id = CMD_EXECUTED_OK;
             commandResponse->size = 0;
         } else {
@@ -799,13 +773,15 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server] See users!\n");
 
         // Eliberează memoria pentru datele anterioare
-        if (commandResponse->data) {
+        if (commandResponse->data) 
+        {
             free(commandResponse->data);
             commandResponse->data = NULL;
         }
         commandResponse->size = 0;
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0)
+        {
             // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -819,7 +795,8 @@ void handleRequest(ClientCommunication *tdL)
             {
                 printf("[Server] Număr de utilizatori găsiți: %d\n", userCount);
 
-                if (userCount > 0) {
+                if (userCount > 0) 
+                {
                     // Concatenează utilizatorii într-un buffer unic
                     size_t totalSize = 0;
                     for (int i = 0; i < userCount; i++) 
@@ -828,7 +805,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     commandResponse->data = malloc(totalSize);
-                    if (commandResponse->data == NULL) {
+                    if (commandResponse->data == NULL) 
+                    {
                         printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor.\n");
                         for (int i = 0; i < userCount; i++) 
                         {
@@ -839,7 +817,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     char* currentPos = (char*)commandResponse->data;
-                    for (int i = 0; i < userCount; i++) {
+                    for (int i = 0; i < userCount; i++) 
+                    {
                         strcpy(currentPos, users[i]);
                         currentPos += strlen(users[i]) + 1;
                         free(users[i]); // Eliberăm memoria pentru fiecare utilizator
@@ -871,13 +850,15 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server] See online users!\n");
 
         // Eliberează memoria pentru datele anterioare
-        if (commandResponse->data) {
+        if (commandResponse->data) 
+        {
             free(commandResponse->data);
             commandResponse->data = NULL;
         }
         commandResponse->size = 0;
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -891,7 +872,8 @@ void handleRequest(ClientCommunication *tdL)
             {
                 printf("[Server] Număr de utilizatori online găsiți: %d\n", userCount);
 
-                if (userCount > 0) {
+                if (userCount > 0) 
+                {
                     // Concatenează utilizatorii într-un buffer unic
                     size_t totalSize = 0;
                     for (int i = 0; i < userCount; i++) 
@@ -900,7 +882,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     commandResponse->data = malloc(totalSize);
-                    if (commandResponse->data == NULL) {
+                    if (commandResponse->data == NULL) 
+                    {
                         printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor online.\n");
                         for (int i = 0; i < userCount; i++) 
                         {
@@ -911,7 +894,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     char* currentPos = (char*)commandResponse->data;
-                    for (int i = 0; i < userCount; i++) {
+                    for (int i = 0; i < userCount; i++) 
+                    {
                         strcpy(currentPos, users[i]);
                         currentPos += strlen(users[i]) + 1;
                         free(users[i]); // Eliberăm memoria pentru fiecare utilizator
@@ -943,13 +927,15 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server] See offline users!\n");
 
         // Eliberează memoria pentru datele anterioare
-        if (commandResponse->data) {
+        if (commandResponse->data) 
+        {
             free(commandResponse->data);
             commandResponse->data = NULL;
         }
         commandResponse->size = 0;
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -963,7 +949,8 @@ void handleRequest(ClientCommunication *tdL)
             {
                 printf("[Server] Număr de utilizatori offline găsiți: %d\n", userCount);
 
-                if (userCount > 0) {
+                if (userCount > 0) 
+                {
                     // Concatenează utilizatorii într-un buffer unic
                     size_t totalSize = 0;
                     for (int i = 0; i < userCount; i++) 
@@ -972,7 +959,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     commandResponse->data = malloc(totalSize);
-                    if (commandResponse->data == NULL) {
+                    if (commandResponse->data == NULL) 
+                    {
                         printf("[Error] Eroare la alocarea memoriei pentru lista utilizatorilor offline.\n");
                         for (int i = 0; i < userCount; i++) 
                         {
@@ -983,7 +971,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     char* currentPos = (char*)commandResponse->data;
-                    for (int i = 0; i < userCount; i++) {
+                    for (int i = 0; i < userCount; i++) 
+                    {
                         strcpy(currentPos, users[i]);
                         currentPos += strlen(users[i]) + 1;
                         free(users[i]); // Eliberăm memoria pentru fiecare utilizator
@@ -1029,7 +1018,9 @@ void handleRequest(ClientCommunication *tdL)
             {
                 printf("[Server] Eroare la trimiterea mesajului.\n");
                 commandResponse->command_id = CMD_ERROR;
-            } else {
+            } 
+            else 
+            {
                 printf("[Server] Mesaj trimis cu succes.\n");
                 commandResponse->command_id = CMD_MSG_SEND + 0x40;
             }
@@ -1057,7 +1048,9 @@ void handleRequest(ClientCommunication *tdL)
             commandResponse->command_id = CMD_REPLY_MSG + 0x40;
             commandResponse->size = 0;
             printf("[Server] Reply Message trimis cu succes.\n");
-        } else {
+        } 
+        else 
+        {
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
             printf("[Server] Eroare la trimiterea Reply Message.\n");
@@ -1147,13 +1140,15 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server] See conversations!\n");
 
         // Eliberează memoria pentru datele anterioare
-        if (commandResponse->data) {
+        if (commandResponse->data) 
+        {
             free(commandResponse->data);
             commandResponse->data = NULL;
         }
         commandResponse->size = 0;
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             // Utilizatorul nu este logat
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -1167,7 +1162,8 @@ void handleRequest(ClientCommunication *tdL)
             {
                 printf("[Server] Număr de conversații găsite: %d\n", conversationCount);
 
-                if (conversationCount > 0) {
+                if (conversationCount > 0) 
+                {
                     // Concatenează conversațiile într-un buffer unic
                     size_t totalSize = 0;
                     for (int i = 0; i < conversationCount; i++) 
@@ -1176,7 +1172,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     commandResponse->data = malloc(totalSize);
-                    if (commandResponse->data == NULL) {
+                    if (commandResponse->data == NULL) 
+                    {
                         printf("[Error] Eroare la alocarea memoriei pentru lista conversațiilor.\n");
                         for (int i = 0; i < conversationCount; i++) 
                         {
@@ -1187,7 +1184,8 @@ void handleRequest(ClientCommunication *tdL)
                     }
 
                     char* currentPos = (char*)commandResponse->data;
-                    for (int i = 0; i < conversationCount; i++) {
+                    for (int i = 0; i < conversationCount; i++)
+                    {
                         strcpy(currentPos, conversations[i]);
                         currentPos += strlen(conversations[i]) + 1;
                         free(conversations[i]); // Eliberăm memoria pentru fiecare conversație
@@ -1217,7 +1215,8 @@ void handleRequest(ClientCommunication *tdL)
     {
         printf("[Server] See history!\n");
 
-        if (tdL->loggedIn == 0) {
+        if (tdL->loggedIn == 0) 
+        {
             printf("[Error] Utilizatorul nu este autentificat.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -1228,7 +1227,8 @@ void handleRequest(ClientCommunication *tdL)
         int messageCount = 0;
 
         // Obținem istoricul conversației
-        if (!getConversationHistory(tdL->userData->username, tdL->messageData->recipient, &messages, &messageCount)) {
+        if (!getConversationHistory(tdL->userData->username, tdL->messageData->recipient, &messages, &messageCount)) 
+        {
             printf("[Error] Nu s-a putut obține istoricul conversației.\n");
             commandResponse->command_id = CMD_ERROR;
             commandResponse->size = 0;
@@ -1236,7 +1236,8 @@ void handleRequest(ClientCommunication *tdL)
         }
 
         // Verificăm dacă există mesaje valide
-        if (messages == NULL || messageCount <= 0) {
+        if (messages == NULL || messageCount <= 0) 
+        {
             printf("[Info] Nu există mesaje pentru această conversație.\n");
             commandResponse->command_id = CMD_SEE_HISTORY + 0x40;
             commandResponse->data = NULL;
@@ -1246,8 +1247,10 @@ void handleRequest(ClientCommunication *tdL)
 
         // Calculăm dimensiunea totală necesară pentru bufferul concatenat
         uint32_t totalSize = 0;
-        for (int i = 0; i < messageCount; i++) {
-            if (messages[i] != NULL) {
+        for (int i = 0; i < messageCount; i++) 
+        {
+            if (messages[i] != NULL) 
+            {
                 totalSize += strlen(messages[i]) + 1; // +1 pentru '\0'
             }
         }
@@ -1270,8 +1273,10 @@ void handleRequest(ClientCommunication *tdL)
 
         // Copiem mesajele în bufferul concatenat
         uint32_t offset = 0;
-        for (int i = 0; i < messageCount; i++) {
-            if (messages[i] != NULL) {
+        for (int i = 0; i < messageCount; i++) 
+        {
+            if (messages[i] != NULL) 
+            {
                 strcpy((char*)commandResponse->data + offset, messages[i]);
                 offset += strlen(messages[i]) + 1; // Trecem după '\0'
                 free(messages[i]); // Eliberăm memoria pentru mesajul individual
@@ -1286,7 +1291,6 @@ void handleRequest(ClientCommunication *tdL)
         printf("[Server] Istoric conversație concatenat trimis cu succes.\n");
     }
 
-    
     else 
     {
         printf("asdfasdfasd\n");
@@ -1304,8 +1308,9 @@ int sendResponse(ClientCommunication *tdL)
 {
     int sd = tdL->socketID;
     int flags = 0;
-    // Two steps     
-    // Send command id
+    // Send Response in 2 pasi    
+
+    // Trimit command id
     COMMAND *commandResponse = tdL->com_response;
     printf("Send COMMAND_ID %X\n", commandResponse->command_id);
 
@@ -1319,18 +1324,22 @@ int sendResponse(ClientCommunication *tdL)
             perror("[Server]Eroare la send() command_id.\n");
             return errno;
     }
-    // Send command data    
+
+    // Trimit command data    
     if (commandResponse->size > 0)
     {
         print_hex(commandResponse->data, commandResponse->size);
-        if (send(sd, commandResponse->data, commandResponse->size, 0) <= 0){
+        if (send(sd, commandResponse->data, commandResponse->size, 0) <= 0)
+        {
             perror("[Server]Eroare la send() command_data.\n");
             return errno;
         }
     } 
-    else{
+    else
+    {
         printf("[Server]NO COMMAND DATA\n");
     }
+    
     printf("[Server]Send message back\n");
     return 1;
 }

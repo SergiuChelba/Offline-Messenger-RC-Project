@@ -5,6 +5,7 @@
 //            uint64 CONTACT_ID, uint64 MSG_ID, uint16 MSG_Len,  ..........
 #define CMD_MSG_RECV 0x13  // Message Received
 //            uint64 CONTACT_ID, uint64 MSG_ID, uint16 MSG_Len, ...........  
+
 #define CMD_ACCESS 0x20  // User Access
 #define CMD_LOGIN 0x21  // Login
 // Login structure: 1st byte username size, 2nd byte password size, N bytes username, M bytes password.
@@ -18,9 +19,11 @@
 
 #define CMD_SEE_CONV 0x44
 #define CMD_SEE_HISTORY 0x45
+
 #define CMD_EXECUTED_OK 0xAA
 #define CMD_ERROR 0xEE
 // Error strcture: 1st byte message size N, message size N bytes
+
 #define CMD_QUIT 0x02
 
 #define DEBUG
@@ -38,6 +41,7 @@ typedef struct COMMAND COMMAND;
 void printCommand(COMMAND *command)
 {
     #ifdef DEBUG
+    
         printf("BEGIN PRINT MSG\n");
         printf("DATA LEN %d \n", command->size);
         switch(command->command_id)
@@ -159,14 +163,14 @@ void printCommand(COMMAND *command)
             default:
                 printf("UNKNOWN COMMAND %02x\n", command->command_id);
         }
-        for(int i = 0; i< command->size; i++){
+
+        for(int i = 0; i< command->size; i++)
+        {
             printf("%02x", (unsigned char)command->data[i]);
         }
         printf("\nEND PRINT MSG\n");
     #endif
 }
-
-
 
 void print_hex(const unsigned char *buffer, size_t length) 
 {

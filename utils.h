@@ -3,12 +3,12 @@
 #include<errno.h>
 
 
-
 typedef struct UserData 
 {
     char username[100];
     char password[100];
 } UserData;
+
 
 typedef struct MessageData 
 {
@@ -17,11 +17,13 @@ typedef struct MessageData
     char message[256]; 
 } MessageData;
 
+
 typedef struct MessageHistory
 {
     unsigned int messageCount;   // Numărul de mesaje
     char **messages;             // Array de mesaje
 } MessageHistory;
+
 
 typedef struct ConversationData 
 {
@@ -30,8 +32,8 @@ typedef struct ConversationData
 } ConversationData;
 
 
-// Utility to print errno number
 void print_error(int errno)
 {
     printf("recv: %s (%d)\n", strerror(errno), errno);
 }
+

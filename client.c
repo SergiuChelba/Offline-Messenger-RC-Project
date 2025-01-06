@@ -27,7 +27,6 @@ char keyboard_input_2[256];
 COMMAND command, command_resp;
 COMMAND respUserName;
 
-
 /* codul de eroare returnat de anumite apeluri */
 extern int errno;
 
@@ -142,7 +141,7 @@ void buildSendMessage(COMMAND* command)
     getchar(); // Consumăm newline
     fgets(message, 256, stdin);
     messageLen = strlen(message);
-    if (message[messageLen - 1] == '\n') message[--messageLen] = '\0'; // Eliminăm newline
+    if (message[messageLen - 1] == '\n') message[--messageLen] = '\0'; // elimin newline
 
     // Construirea comenzii
     command->command_id = CMD_MSG_SEND;
@@ -154,37 +153,30 @@ void buildSendMessage(COMMAND* command)
     memcpy(command->data + 1 + recipientLen, message, messageLen); // Mesajul
 }
 
-
 /* 5. COMANDA REPLY MESSAGE*/
 
 void buildReplyMessage(COMMAND* command, int sd) 
 {
-    // Pasul 1: Afișarea conversațiilor existente
+    // afisez conversatiile existente
     buildSeeConversations(command);
     sendRequest(sd, command);
     receiveRequest(sd, &command_resp);
     interpretResponse(sd);
 
-    // Pasul 2: Selectarea unei conversații
-    //char conversation[100];
-    //printf("În ce conversație doriți să intrați? ");
-    //scanf("%99s", conversation);
-
-    // Pasul 3: Afișarea istoricului conversației
+    // afisez istoricul conversatiei avute cu un anumit user
     buildSeeHistory(command);
     sendRequest(sd, command);
     receiveRequest(sd, &command_resp);
     interpretResponse(sd);
 
-    // Pasul 4: Selectarea mesajului la care se răspunde
+    // reply unui anumit mesaj
     int messageNumber;
     printf("Cărui mesaj doriți să îi răspundeți? (introduceți numărul mesajului) ");
     scanf("%d", &messageNumber);
 
-    // Debug pentru ID mesaj
-    printf("[Debug Client] Mesaj ID selectat: %d\n", messageNumber);
+    //printf("[Debug Client] Mesaj ID selectat: %d\n", messageNumber);
 
-    // Pasul 5: Preluarea mesajului de la utilizator
+    // mesajul de raspuns
     char replyMessage[256];
     printf("Introduceți mesajul de răspuns: ");
     getchar(); // Consumăm newline
@@ -192,21 +184,21 @@ void buildReplyMessage(COMMAND* command, int sd)
     size_t replyLen = strlen(replyMessage);
     if (replyMessage[replyLen - 1] == '\n') replyMessage[--replyLen] = '\0';
 
-    // Pasul 6: Construirea comenzii pentru reply
-    uint32_t networkMessageNumber = htonl(messageNumber); // Conversie la format rețea
+    // construiesc comanda reply
+    uint32_t networkMessageNumber = htonl(messageNumber); // Conversie la format retea
     command->command_id = CMD_REPLY_MSG;
     command->size = sizeof(uint32_t) + replyLen;
 
-    // Alocăm memorie pentru datele comenzii
+    // Alocam memorie pentru datele comenzii
     command->data = malloc(command->size);
-    memcpy(command->data, &networkMessageNumber, sizeof(uint32_t)); // Adăugăm numărul mesajului
-    memcpy(command->data + sizeof(uint32_t), replyMessage, replyLen); // Adăugăm mesajul
+    memcpy(command->data, &networkMessageNumber, sizeof(uint32_t)); // adaug numărul mesajului
+    memcpy(command->data + sizeof(uint32_t), replyMessage, replyLen); // adaug mesajul
 
-    // Trimiterea comenzii
+    // trimit comanda
     sendRequest(sd, command);
     receiveRequest(sd, &command_resp);
 
-    // Interpretarea răspunsului
+    // interpretez raspunsul
     if (command_resp.command_id == CMD_REPLY_MSG + 0x40) 
     {
         printf("Reply message Success!\n");
@@ -216,7 +208,6 @@ void buildReplyMessage(COMMAND* command, int sd)
         printf("Reply message failed.\n");
     }
 }
-
 
 /* 6. COMANDA RECEIVED MESSAGE */
 
@@ -242,23 +233,22 @@ void buildSeeHistory(COMMAND* command)
     uint16_t userLen;
     char UserConv[100];
 
-    // Citire utilizator (în cazul în care dorim să vedem istoricul unui anumit utilizator)
+    // Citire utilizator (in cazul în care dorim sa vedem istoricul unui anumit utilizator)
     printf("Introduceți numele persoanei cu care ați conversat: ");
     scanf("%99s", UserConv);
     userLen = strlen(UserConv);
 
     // Construirea comenzii
     command->command_id = CMD_SEE_HISTORY;
-    command->size = 1 + userLen;  // 1 pentru dimensiunea numelui de utilizator și restul pentru numele în sine
+    command->size = 1 + userLen;  // 1 pentru dimensiunea numelui de utilizator si restul pentru numele in sine
 
-    // Alocăm memorie pentru datele comenzii
+    // Alocam memorie pentru datele comenzii
     command->data = malloc(command->size);
 
-    // Adăugăm lungimea numelui de utilizator și numele acestuia
+    // Adaugam lungimea numelui de utilizator si numele acestuia
     command->data[0] = (uint8_t)userLen;  // Dimensiunea numelui de utilizator
     memcpy(command->data + 1, UserConv, userLen);  // Numele utilizatorului
 }
-
 
 /* 9. LOGOUT */
 
@@ -271,25 +261,25 @@ void buildLogout(COMMAND* command)
 
 /*---------------------------------------------------------------------*/
 
-
 /* FUNCTIILE DE TRIMITERE COMANDA SI PRIMIRE COMANDA - CLIENT*/
 
 int sendRequest(int sd, COMMAND* command_sent)
 {
-    // Two step     
-    // Send command id
-    //char raspuns[256];
+    // Send Request in 2 pasi
+
+    // 1. Trimit command id
     if (send(sd, &command_sent->command_id, 1, MSG_MORE) < 0)
     {
-                perror("Eroare la write() spre server.\n");
-                return errno;
+        perror("Eroare la write() spre server.\n");
+        return errno;
     }
-    // Send command data
+
+    // 2. Trimit command data
     print_hex(command_sent->data, command_sent->size); /*pt debug*/
     if (send(sd, command_sent->data, command_sent->size, 0) < 0)
     {
-            perror("Eroare la send() spre server.\n");
-            return errno;
+        perror("Eroare la send() spre server.\n");
+        return errno;
     }
     return 1;
 }
@@ -301,21 +291,24 @@ int receiveRequest(int sd, COMMAND* command_received)
     unsigned int bytes = recv(sd, raspuns, sizeof(raspuns), 0);
     printf("Bytes count recv %d\n", bytes);
 
-    if (bytes <= 0) {
+    if (bytes <= 0) 
+    {
         perror("Eroare la read() de la server.\n");
         return -1; // Eroare de citire
     }
 
-    // Extragem `command_id` din primul byte
+    // Extragem command_id din primul byte
     command_received->command_id = raspuns[0];
 
-    // Calculăm dimensiunea datelor primite
+    // Calculam dimensiunea datelor primite
     unsigned int new_size = bytes - 1;
 
-    // Realocăm sau alocăm memoria necesară
-    if (command_received->size < new_size) {
+    // Realocam sau alocam memoria necesara
+    if (command_received->size < new_size) 
+    {
         void* new_data = realloc(command_received->data, new_size);
-        if (!new_data) {
+        if (!new_data) 
+        {
             perror("Eroare la realloc()");
             free(command_received->data);
             command_received->data = NULL;
@@ -324,7 +317,7 @@ int receiveRequest(int sd, COMMAND* command_received)
         command_received->data = new_data;
     }
 
-    // Actualizăm dimensiunea și copiem datele
+    // Actualizam dimensiunea si copiem datele
     command_received->size = new_size;
     memcpy(command_received->data, raspuns + 1, new_size);
     return 1; // Succes
@@ -393,7 +386,7 @@ void interpretResponse(int sd)
             char* currentUser = (char*)(command_resp.data + offset);
             printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
             printf("%s\n", currentUser);
-            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+            offset += strlen(currentUser) + 1; // Trecem la urmatorul utilizator
         }
 
         command_resp.success = 1;
@@ -402,7 +395,7 @@ void interpretResponse(int sd)
 
     if (command_resp.command_id == CMD_SEE_ON_USERS + 0x40)
     {
-       printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
+        printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
         for (unsigned int i = 0; i < command_resp.size; i++) 
         {
             printf("%02X ", command_resp.data[i]);
@@ -419,7 +412,7 @@ void interpretResponse(int sd)
             char* currentUser = (char*)(command_resp.data + offset);
             printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
             printf("%s\n", currentUser);
-            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+            offset += strlen(currentUser) + 1; // Trecem la urmatorul utilizator
         }
 
         command_resp.success = 1;;
@@ -444,7 +437,7 @@ void interpretResponse(int sd)
             char* currentUser = (char*)(command_resp.data + offset);
             printf("[Debug] Offset: %u, Utilizator: %s\n", offset, currentUser);
             printf("%s\n", currentUser);
-            offset += strlen(currentUser) + 1; // Trecem la următorul utilizator
+            offset += strlen(currentUser) + 1; // Trecem la urmatorul utilizator
         }
 
         command_resp.success = 1;
@@ -486,8 +479,6 @@ void interpretResponse(int sd)
         command_resp.success = 1;
     }
 
-
-
    if (command_resp.command_id == CMD_SEE_CONV + 0x40) 
     {
         printf("[Client] Date primite (dimensiune: %d):\n", command_resp.size);
@@ -500,14 +491,14 @@ void interpretResponse(int sd)
 
         printf("Conversațiile disponibile:\n");
 
-        // Parcurgem conversațiile din bufferul primit
+        // Parcurgem conversatiile din bufferul primit
         unsigned int offset = 0;
         while (offset < command_resp.size) 
         {
             char* currentConv = (char*)(command_resp.data + offset);
             printf("[Debug] Offset: %u, Conversație: %s\n", offset, currentConv);
             printf("%s\n", currentConv);
-            offset += strlen(currentConv) + 1; // Trecem la următoarea conversație
+            offset += strlen(currentConv) + 1; // Trecem la urmatoarea conversatie
         }
 
         command_resp.success = 1;
@@ -517,28 +508,30 @@ void interpretResponse(int sd)
     {
         printf("[Debug Client] Dimensiunea datelor primite: %d\n", command_resp.size);
         printf("[Debug Client] Date brute primite:\n");
-        for (uint32_t i = 0; i < command_resp.size; i++) {
-            printf("%c", command_resp.data[i] ? command_resp.data[i] : '|'); // Afișăm '|' pentru '\0'
+        for (uint32_t i = 0; i < command_resp.size; i++) 
+        {
+            printf("%c", command_resp.data[i] ? command_resp.data[i] : '|'); // Afisam '|' pentru '\0'
         }
         printf("\n");
 
         printf("Istoricul conversației:\n");
 
         uint32_t offset = 0;
-        while (offset < command_resp.size) {
+        while (offset < command_resp.size) 
+        {
             char* currentMessage = (char*)(command_resp.data + offset);
             printf("%s\n", currentMessage);
 
-            // Găsim următorul separator '\0'
+            // Gasim urmatorul separator '\0'
             uint32_t length = 0;
             while ((offset + length) < command_resp.size && command_resp.data[offset + length] != '\0') {
                 length++;
             }
 
-            // Avansăm după '\0'
+            // Avansam după '\0'
             offset += length + 1;
 
-            // Verificăm dacă am depășit dimensiunea totală
+            // Verificam dacă am depasit dimensiunea totala
             if (offset > command_resp.size) 
             {
                 printf("[Warning] Offset-ul a depășit dimensiunea bufferului!\n");
@@ -596,7 +589,6 @@ void show_menu(int menuId)
 
 /* MAIN */
 
-
 int main(int argc, char *argv[])
 {
 
@@ -609,7 +601,7 @@ int main(int argc, char *argv[])
     char buf[100];             // buffer pentru input
     char optiune[10];          // opțiunea utilizatorului
 
-    /* verificăm argumentele */
+    /* verificam argumentele */
     if (argc != 3)
     {
         printf("Sintaxa: %s <adresa_server> <port>\n", argv[0]);
@@ -647,7 +639,7 @@ int main(int argc, char *argv[])
     while (1) // Bucla principala
     {   
         read(0, optiune, sizeof(optiune)); //clientul citeste optiunea
-        optiune[strcspn(optiune, "\n")] = '\0'; // eliminăm '\n'
+        optiune[strcspn(optiune, "\n")] = '\0'; // eliminam '\n'
 
         if (strcmp(optiune, "Login") == 0  && (currentMenuId == 0 || currentMenuId == 2))  // LOGIN
         {
